@@ -1,0 +1,65 @@
+# STREAM-001.4: local-only infrastructure. Web / API / worker run on the host.
+# Docker Compose reads variables from the root .env (copy .env.example first).
+name: streamlab
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7.4-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  storage:
+    # PGSTY SILO: maintained MinIO-compatible S3 object store.
+    # Standard image bundles `silo` healthcheck and `mcli` administration CLI.
+    image: docker.io/pgsty/silo:RELEASE.2026-11-12T00-00-00Z
+    command: ['server', '/data', '--console-address', ':9001']
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${S3_ROOT_USER:?Set S3_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${S3_ROOT_PASSWORD:?Set S3_ROOT_PASSWORD in .env}
+      MINIO_API_CORS_ALLOW_ORIGIN: 'http://localhost:5173,http://127.0.0.1:5173'
+    ports:
+      - '127.0.0.1:${S3_PORT:-9000}:9000'
+      - '127.0.0.1:${S3_CONSOLE_PORT:-9001}:9001'
+    volumes:
+      - storage_data:/data
+      - ./infra/storage/cors:/config/cors:ro
+    healthcheck:
+      test: ['CMD', 'silo', 'healthcheck', 'ready']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+volumes:
+  postgres_data:
+  redis_data:
+  storage_data:

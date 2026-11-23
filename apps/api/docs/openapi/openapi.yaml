@@ -1,0 +1,1272 @@
+# Contract-first design; x-streamlab-status: planned means the route is not implemented.
+openapi: 3.1.1
+info:
+  title: StreamLab API
+  version: 0.1.0
+  description:
+    'STREAM-001.9 contract-first design. Only Health routes are implemented in STREAM-001. Domain operations
+    marked x-streamlab-status: planned are NOT executable yet.'
+servers:
+  - url: http://localhost:4000
+tags:
+  - name: Health
+  - name: Auth
+  - name: Users
+  - name: Videos
+  - name: Uploads
+  - name: Playback
+  - name: History
+paths:
+  /api/v1/health:
+    get:
+      tags:
+        - Health
+      summary: Liveness probe
+      operationId: getLiveness
+      responses:
+        '200':
+          description: API process is running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/v1/health/ready:
+    get:
+      tags:
+        - Health
+      summary: Readiness probe
+      operationId: getReadiness
+      responses:
+        '200':
+          description: Database and Redis are reachable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+        '503':
+          description: At least one required dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+  /api/v1/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a new account
+      operationId: registerUser
+      x-streamlab-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessAuthSession'
+        '400':
+          description: Invalid JSON or request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Log in
+      operationId: loginUser
+      description:
+        Response body contains short-lived access token. Rotating refresh token is issued as HttpOnly
+        secure cookie.
+      x-streamlab-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessAuthSession'
+        '400':
+          description: Invalid JSON or request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Rotate refresh token
+      operationId: refreshSession
+      x-streamlab-status: planned
+      security: &id001
+        - refreshCookie: []
+      parameters:
+        - &id002
+          name: X-CSRF-Token
+          in: header
+          required: true
+          description: CSRF protection token for cookie-authenticated requests
+          schema:
+            type: string
+      responses:
+        '200':
+          description: New access token and refresh cookie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessAuthSession'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Revoke refresh session
+      operationId: logout
+      x-streamlab-status: planned
+      security: *id001
+      parameters:
+        - *id002
+      responses:
+        '204':
+          description: Session revoked
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/users/me:
+    get:
+      tags:
+        - Users
+      summary: Current user
+      operationId: getCurrentUser
+      x-streamlab-status: planned
+      security: &id003
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessAuthUser'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/videos:
+    get:
+      tags:
+        - Videos
+      summary: Discover published videos
+      operationId: listVideos
+      description: Only PUBLIC, READY, non-deleted videos are discoverable.
+      x-streamlab-status: planned
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+        - name: q
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: category
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        '200':
+          description: Public READY videos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessVideoList'
+        '400':
+          description: Invalid JSON or request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    post:
+      tags:
+        - Videos
+      summary: Create video draft
+      operationId: createVideo
+      description: Starts PRIVATE and DRAFT; does not upload a binary file.
+      x-streamlab-status: planned
+      security: *id003
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVideoRequest'
+      responses:
+        '201':
+          description: Video draft created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessVideo'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/videos/{videoId}:
+    get:
+      tags:
+        - Videos
+      summary: Get video details
+      operationId: getVideo
+      description: Public/unlisted videos may be readable without token; PRIVATE requires owner or admin.
+      x-streamlab-status: planned
+      security: &id005
+        - {}
+        - bearerAuth: []
+      parameters:
+        - &id004
+          name: videoId
+          in: path
+          required: true
+          description: Video UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Video details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessVideo'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    patch:
+      tags:
+        - Videos
+      summary: Update video metadata
+      operationId: updateVideo
+      x-streamlab-status: planned
+      security: *id003
+      parameters:
+        - *id004
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVideoRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessVideo'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    delete:
+      tags:
+        - Videos
+      summary: Schedule video deletion
+      operationId: deleteVideo
+      x-streamlab-status: planned
+      security: *id003
+      parameters:
+        - *id004
+      responses:
+        '202':
+          description: Deletion accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessDeleting'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/videos/{videoId}/publish:
+    post:
+      tags:
+        - Videos
+      summary: Publish ready video
+      operationId: publishVideo
+      description: Requires READY processing state; sets PUBLIC visibility and publishedAt.
+      x-streamlab-status: planned
+      security: *id003
+      parameters:
+        - *id004
+      responses:
+        '200':
+          description: Published video
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessVideo'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/videos/{videoId}/processing:
+    get:
+      tags:
+        - Videos
+      summary: Get processing status
+      operationId: getVideoProcessing
+      x-streamlab-status: planned
+      security: *id003
+      parameters:
+        - *id004
+      responses:
+        '200':
+          description: Processing state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessVideoProcessing'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/videos/{videoId}/uploads:
+    post:
+      tags:
+        - Uploads
+      summary: Create direct-upload session
+      operationId: createUpload
+      description: Returns temporary direct-to-storage URL. Do not send binary media through the Express API.
+      x-streamlab-status: planned
+      security: *id003
+      parameters:
+        - *id004
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUploadRequest'
+      responses:
+        '201':
+          description: Presigned single-PUT upload session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessUploadSession'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '413':
+          description: Payload too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/uploads/{uploadId}/complete:
+    post:
+      tags:
+        - Uploads
+      summary: Verify completed upload
+      operationId: completeUpload
+      description:
+        Server verifies object metadata and integrity before queuing. A client notification alone is
+        not proof of upload.
+      x-streamlab-status: planned
+      security: *id003
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          description: Upload UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '202':
+          description: Upload verified and processing queued or pending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessUploadComplete'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/videos/{videoId}/playback:
+    get:
+      tags:
+        - Playback
+      summary: Get authorized HLS playback information
+      operationId: getPlayback
+      description:
+        Only READY, accessible videos may be played. PRIVATE requires auth. Grant must protect playlists
+        and segments, not only the master playlist.
+      x-streamlab-status: planned
+      security: *id005
+      parameters:
+        - *id004
+      responses:
+        '200':
+          description: Playback grant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessPlayback'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/videos/{videoId}/progress:
+    put:
+      tags:
+        - History
+      summary: Upsert watch progress
+      operationId: putProgress
+      x-streamlab-status: planned
+      security: *id003
+      parameters:
+        - *id004
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WatchProgressRequest'
+      responses:
+        '200':
+          description: Current watch progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessWatchProgress'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: streamlab_refresh
+      description: Illustrative cookie name; finalize before STREAM-002 implementation.
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details: {}
+          required:
+            - code
+            - message
+        requestId:
+          anyOf:
+            - type: string
+            - type: 'null'
+      required:
+        - success
+        - error
+        - requestId
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          const: ok
+        service:
+          type: string
+          const: api
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - status
+        - service
+        - timestamp
+    ReadinessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - ready
+            - not_ready
+        service:
+          type: string
+          const: api
+        checks:
+          type: object
+          properties:
+            database:
+              type: string
+              enum:
+                - up
+                - down
+            redis:
+              type: string
+              enum:
+                - up
+                - down
+          required:
+            - database
+            - redis
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - status
+        - service
+        - checks
+        - timestamp
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum:
+            - USER
+            - ADMIN
+        avatarUrl:
+          anyOf:
+            - type: string
+              format: uri
+            - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - displayName
+        - email
+        - role
+        - avatarUrl
+        - createdAt
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          minLength: 12
+          maxLength: 128
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 100
+      required:
+        - email
+        - password
+        - displayName
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+      required:
+        - email
+        - password
+    AuthSession:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          const: Bearer
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+        user:
+          $ref: '#/components/schemas/AuthUser'
+      required:
+        - accessToken
+        - tokenType
+        - expiresInSeconds
+        - user
+    Video:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          anyOf:
+            - type: string
+            - type: 'null'
+        status:
+          type: string
+          enum: &id007
+            - DRAFT
+            - UPLOADING
+            - UPLOADED
+            - QUEUED
+            - PROCESSING
+            - READY
+            - FAILED
+            - DELETING
+        visibility:
+          type: string
+          enum: &id006
+            - PRIVATE
+            - UNLISTED
+            - PUBLIC
+        durationSeconds:
+          anyOf:
+            - type: integer
+              minimum: 0
+            - type: 'null'
+        publishedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - ownerId
+        - title
+        - description
+        - status
+        - visibility
+        - durationSeconds
+        - publishedAt
+        - createdAt
+        - updatedAt
+    CreateVideoRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          anyOf:
+            - type: string
+              maxLength: 10000
+            - type: 'null'
+        categoryIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+        - title
+    UpdateVideoRequest:
+      type: object
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          anyOf:
+            - type: string
+              maxLength: 10000
+            - type: 'null'
+        categoryIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        visibility:
+          type: string
+          enum: *id006
+    VideoList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Video'
+        nextCursor:
+          anyOf:
+            - type: string
+            - type: 'null'
+      required:
+        - items
+        - nextCursor
+    VideoProcessing:
+      type: object
+      properties:
+        videoId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: *id007
+        processingVersion:
+          type: integer
+          minimum: 0
+        failureMessage:
+          anyOf:
+            - type: string
+            - type: 'null'
+      required:
+        - videoId
+        - status
+        - processingVersion
+        - failureMessage
+    CreateUploadRequest:
+      type: object
+      properties:
+        fileName:
+          type: string
+          minLength: 1
+          maxLength: 255
+        contentType:
+          type: string
+          minLength: 1
+          maxLength: 255
+        sizeBytes:
+          type: string
+          pattern: ^[1-9][0-9]{0,18}$
+        checksumSha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+      required:
+        - fileName
+        - contentType
+        - sizeBytes
+    UploadSession:
+      type: object
+      properties:
+        uploadId:
+          type: string
+          format: uuid
+        videoId:
+          type: string
+          format: uuid
+        mode:
+          type: string
+          const: SINGLE
+        method:
+          type: string
+          const: PUT
+        uploadUrl:
+          type: string
+          format: uri
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+        - uploadId
+        - videoId
+        - mode
+        - method
+        - uploadUrl
+        - headers
+        - expiresAt
+    UploadComplete:
+      type: object
+      properties:
+        videoId:
+          type: string
+          format: uuid
+        uploadId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - UPLOADED
+            - QUEUED
+      required:
+        - videoId
+        - uploadId
+        - status
+    Playback:
+      type: object
+      properties:
+        videoId:
+          type: string
+          format: uuid
+        protocol:
+          type: string
+          const: HLS
+        manifestUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+        - videoId
+        - protocol
+        - manifestUrl
+        - expiresAt
+    WatchProgressRequest:
+      type: object
+      properties:
+        positionSeconds:
+          type: integer
+          minimum: 0
+        completed:
+          type: boolean
+          default: false
+      required:
+        - positionSeconds
+    WatchProgress:
+      type: object
+      properties:
+        videoId:
+          type: string
+          format: uuid
+        positionSeconds:
+          type: integer
+          minimum: 0
+        completedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        lastWatchedAt:
+          type: string
+          format: date-time
+      required:
+        - videoId
+        - positionSeconds
+        - completedAt
+        - lastWatchedAt
+    Deleting:
+      type: object
+      properties:
+        status:
+          type: string
+          const: DELETING
+      required:
+        - status
+    SuccessAuthSession:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AuthSession'
+      required:
+        - success
+        - data
+    SuccessAuthUser:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/AuthUser'
+      required:
+        - success
+        - data
+    SuccessVideo:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/Video'
+      required:
+        - success
+        - data
+    SuccessVideoList:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/VideoList'
+      required:
+        - success
+        - data
+    SuccessVideoProcessing:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/VideoProcessing'
+      required:
+        - success
+        - data
+    SuccessUploadSession:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/UploadSession'
+      required:
+        - success
+        - data
+    SuccessUploadComplete:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/UploadComplete'
+      required:
+        - success
+        - data
+    SuccessPlayback:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/Playback'
+      required:
+        - success
+        - data
+    SuccessWatchProgress:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/WatchProgress'
+      required:
+        - success
+        - data
+    SuccessDeleting:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/Deleting'
+      required:
+        - success
+        - data

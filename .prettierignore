@@ -1,0 +1,12 @@
+**/node_modules/
+**/dist/
+**/coverage/
+**/.vite/
+**/generated/
+**/playwright-report/
+**/test-results/
+.pnpm-store/
+.husky/_/
+pnpm-lock.yaml
+*.log
+*.min.js

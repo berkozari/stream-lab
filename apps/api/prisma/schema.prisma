@@ -1,0 +1,192 @@
+// StreamLab VOD — STREAM-001.5
+// Schema ownership: apps/api/prisma. The worker must not own migrations.
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum VideoStatus {
+  DRAFT
+  UPLOADING
+  UPLOADED
+  QUEUED
+  PROCESSING
+  READY
+  FAILED
+  DELETING
+}
+
+enum VideoVisibility {
+  PRIVATE
+  UNLISTED
+  PUBLIC
+}
+
+enum UploadStatus {
+  INITIATED
+  UPLOADING
+  VERIFIED
+  FAILED
+  EXPIRED
+}
+
+enum UploadMode {
+  SINGLE
+  MULTIPART
+}
+
+enum MediaAssetKind {
+  ORIGINAL
+  THUMBNAIL
+  HLS_MASTER
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique @db.VarChar(255)
+  passwordHash String    @db.Text
+  displayName  String    @db.VarChar(100)
+  role         UserRole  @default(USER)
+  avatarKey    String?   @db.Text
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+
+  sessions      AuthSession[]
+  videos        Video[]
+  watchProgress WatchProgress[]
+}
+
+model AuthSession {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @db.Uuid
+  refreshTokenHash String    @unique @db.VarChar(128)
+  expiresAt        DateTime  @db.Timestamptz(3)
+  revokedAt        DateTime? @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, expiresAt])
+}
+
+model Video {
+  id                String          @id @default(uuid()) @db.Uuid
+  ownerId           String          @db.Uuid
+  title             String          @db.VarChar(160)
+  description       String?         @db.Text
+  status            VideoStatus     @default(DRAFT)
+  visibility        VideoVisibility @default(PRIVATE)
+  processingVersion Int             @default(0)
+  durationSeconds   Int?
+  publishedAt       DateTime?       @db.Timestamptz(3)
+  deletedAt         DateTime?       @db.Timestamptz(3)
+  createdAt         DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @db.Timestamptz(3)
+
+  owner         User             @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  uploads       VideoUpload[]
+  mediaAssets   MediaAsset[]
+  renditions    VideoRendition[]
+  categories    VideoCategory[]
+  watchProgress WatchProgress[]
+
+  @@index([ownerId, createdAt])
+  @@index([status, visibility, deletedAt, publishedAt])
+}
+
+model VideoUpload {
+  id                String       @id @default(uuid()) @db.Uuid
+  videoId           String       @db.Uuid
+  storageKey        String       @unique @db.Text
+  status            UploadStatus @default(INITIATED)
+  uploadMode        UploadMode   @default(SINGLE)
+  storageUploadId   String?      @db.Text
+  expectedSizeBytes BigInt
+  checksum          String?      @db.VarChar(255)
+  expiresAt         DateTime     @db.Timestamptz(3)
+  completedAt       DateTime?    @db.Timestamptz(3)
+  createdAt         DateTime     @default(now()) @db.Timestamptz(3)
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Restrict)
+
+  @@index([videoId, status])
+  @@index([expiresAt, status])
+}
+
+model MediaAsset {
+  id                String         @id @default(uuid()) @db.Uuid
+  videoId           String         @db.Uuid
+  kind              MediaAssetKind
+  storageKey        String         @unique @db.Text
+  contentType       String         @db.VarChar(255)
+  sizeBytes         BigInt?
+  processingVersion Int?
+  createdAt         DateTime       @default(now()) @db.Timestamptz(3)
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Restrict)
+
+  @@index([videoId, kind])
+  @@index([videoId, processingVersion])
+}
+
+model VideoRendition {
+  id                String   @id @default(uuid()) @db.Uuid
+  videoId           String   @db.Uuid
+  processingVersion Int
+  label             String   @db.VarChar(20)
+  width             Int
+  height            Int
+  bitrate           Int
+  codec             String   @db.VarChar(64)
+  playlistKey       String   @unique @db.Text
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Restrict)
+
+  @@unique([videoId, processingVersion, label])
+  @@index([videoId, processingVersion])
+}
+
+model Category {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String   @db.VarChar(100)
+  slug       String   @unique @db.VarChar(100)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  videos VideoCategory[]
+}
+
+model VideoCategory {
+  videoId    String @db.Uuid
+  categoryId String @db.Uuid
+
+  video    Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@id([videoId, categoryId])
+  @@index([categoryId, videoId])
+}
+
+model WatchProgress {
+  userId         String    @db.Uuid
+  videoId        String    @db.Uuid
+  positionSeconds Int      @default(0)
+  completedAt     DateTime? @db.Timestamptz(3)
+  lastWatchedAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  video Video @relation(fields: [videoId], references: [id], onDelete: Restrict)
+
+  @@id([userId, videoId])
+  @@index([userId, lastWatchedAt])
+}

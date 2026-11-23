@@ -1,0 +1,27 @@
+# Package manager
+node_modules/
+.pnpm-store/
+
+# Build / test artifacts
+**/dist/
+**/coverage/
+**/*.tsbuildinfo
+
+# Environment (commit examples only)
+.env
+.env.*
+!.env.example
+!**/.env.example
+!**/.env.test.example
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Local logs
+*.log
+
+# Generated Prisma Client (recreate with pnpm db:generate)
+apps/api/src/generated/
