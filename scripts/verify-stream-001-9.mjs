@@ -63,6 +63,7 @@ const expected = [
 ];
 for (const endpoint of expected) assert.ok(paths[endpoint], `Missing path: ${endpoint}`);
 let planned = 0;
+let implemented = 0;
 const operations = new Set();
 for (const [p, methods] of Object.entries(paths)) {
   for (const [method, operation] of Object.entries(methods)) {
@@ -73,17 +74,36 @@ for (const [p, methods] of Object.entries(paths)) {
       `Duplicate operationId: ${operation.operationId}`,
     );
     operations.add(operation.operationId);
+
     if (!p.startsWith('/api/v1/health')) {
-      assert.equal(
-        operation['x-streamlab-status'],
-        'planned',
-        `${method.toUpperCase()} ${p} is not implemented`,
+      const status = operation['x-streamlab-status'];
+
+      assert.ok(
+        status === 'planned' || status === 'implemented',
+        `Invalid implementation status: ${method.toUpperCase()} ${p}`,
       );
-      planned++;
+
+      if (status === 'planned') {
+        planned++;
+      } else {
+        implemented++;
+      }
     }
   }
 }
-assert.ok(planned >= 12, `Expected >= 12 planned operations, got ${planned}`);
+const implementedAuthOperations = [
+  ['get', '/api/v1/auth/csrf'],
+  ['post', '/api/v1/auth/register'],
+  ['post', '/api/v1/auth/login'],
+];
+for (const [method, endpoint] of implementedAuthOperations) {
+  assert.equal(
+    paths[endpoint]?.[method]?.['x-streamlab-status'],
+    'implemented',
+    `${method.toUpperCase()} ${endpoint} must be implemented`,
+  );
+}
+assert.ok(planned + implemented >= 12, 'Expected at least 12 documented API operations');
 console.log(
   `PASS: OpenAPI parsed; ${Object.keys(paths).length} paths; ${planned} planned operations; refs, scripts and dependencies verified.`,
 );

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "pnpm db:generate && pnpm -r --if-present build",
-    "check": "pnpm verify:scaffold && pnpm verify:standards && pnpm lint && pnpm typecheck && pnpm format:check && pnpm build && pnpm verify:worker:foundation && pnpm test:worker:foundation && pnpm verify:api:contracts && pnpm test:api:contracts && pnpm verify:integration && pnpm test:integration:smoke",
+    "check": "pnpm verify:scaffold && pnpm verify:standards && pnpm lint && pnpm typecheck && pnpm format:check && pnpm build && pnpm verify:worker:foundation && pnpm test:worker:foundation && pnpm verify:api:contracts && pnpm test:api:contracts && pnpm verify:integration && pnpm test:integration:smoke && pnpm verify:auth:register && pnpm test:auth:register && pnpm verify:auth:login && pnpm test:auth:login && pnpm verify:auth:refresh && pnpm test:auth:refresh && pnpm verify:auth:session && pnpm test:auth:session && pnpm verify:web:auth && pnpm test:web:auth && pnpm verify:web:auth:ui && pnpm test:web:auth:ui && pnpm verify:auth:security && pnpm test:auth:security && pnpm verify:auth:e2e",
     "dev": "pnpm --filter @streamlab/contracts build && pnpm --parallel --filter @streamlab/web --filter @streamlab/api --filter @streamlab/worker run dev",
     "dev:api": "pnpm --filter @streamlab/contracts build && pnpm --filter @streamlab/api dev",
     "dev:web": "pnpm --filter @streamlab/contracts build && pnpm --filter @streamlab/web dev",
@@ -40,7 +40,30 @@
     "test:api:contracts": "pnpm --filter @streamlab/contracts test",
     "verify:integration": "node scripts/verify-stream-001-10.mjs",
     "test:integration:smoke": "node --test scripts/tests/http-checks.test.mjs",
-    "smoke:integration": "node scripts/smoke-integration.mjs"
+    "smoke:integration": "node scripts/smoke-integration.mjs",
+    "verify:auth:register": "node scripts/verify-stream-002-2.mjs",
+    "setup:auth:secrets": "node scripts/setup-auth-secrets.mjs",
+    "test:auth:register": "pnpm --filter @streamlab/contracts build && pnpm --filter @streamlab/api test:register",
+    "smoke:auth:register": "pnpm --filter @streamlab/api smoke:register",
+    "verify:auth:login": "node scripts/verify-stream-002-3.mjs",
+    "test:auth:login": "pnpm --filter @streamlab/contracts build && pnpm --filter @streamlab/api test:login",
+    "smoke:auth:login": "pnpm --filter @streamlab/api smoke:login",
+    "verify:auth:refresh": "node scripts/verify-stream-002-4.mjs",
+    "test:auth:refresh": "pnpm --filter @streamlab/api test:refresh",
+    "smoke:auth:refresh": "pnpm --filter @streamlab/api smoke:refresh",
+    "verify:auth:session": "node scripts/verify-stream-002-5.mjs",
+    "test:auth:session": "pnpm --filter @streamlab/api test:session",
+    "smoke:auth:session": "pnpm --filter @streamlab/api smoke:session",
+    "verify:web:auth": "node scripts/verify-stream-002-6.mjs",
+    "test:web:auth": "pnpm --filter @streamlab/web test:auth",
+    "verify:web:auth:ui": "node scripts/verify-stream-002-7.mjs",
+    "test:web:auth:ui": "pnpm --filter @streamlab/contracts build && pnpm --filter @streamlab/web test:auth:ui",
+    "verify:auth:security": "node scripts/verify-stream-002-8.mjs",
+    "test:auth:security": "pnpm --filter @streamlab/contracts build && pnpm --filter @streamlab/api test:security",
+    "smoke:auth:security": "pnpm --filter @streamlab/api smoke:security",
+    "verify:auth:e2e": "node scripts/verify-stream-002-9.mjs",
+    "test:auth:e2e": "playwright test --config=playwright.config.ts",
+    "test:auth:e2e:headed": "playwright test --config=playwright.config.ts --headed"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -53,6 +76,7 @@
     "prettier": "^3.10.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.73.0",
-    "yaml": "^2.9.1"
+    "yaml": "^2.9.1",
+    "@playwright/test": "^1.65.1"
   }
 }
