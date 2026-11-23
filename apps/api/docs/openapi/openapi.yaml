@@ -4,7 +4,7 @@ info:
   title: StreamLab API
   version: 0.1.0
   description:
-    'STREAM-001.9 contract-first design. Only Health routes are implemented in STREAM-001. Domain operations
+    'STREAM-001.9 contract-first design. Health, auth/csrf, auth/register and auth/login routes are implemented. Other domain operations
     marked x-streamlab-status: planned are NOT executable yet.'
 servers:
   - url: http://localhost:4000
@@ -49,13 +49,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadinessResponse'
+  /api/v1/auth/csrf:
+    get:
+      tags:
+        - Auth
+      summary: Get pre-auth CSRF token and browser context cookie
+      operationId: getCsrfToken
+      description: Return a CSRF token for same-origin register. Re-fetch after registration.
+      x-streamlab-status: implemented
+      responses:
+        '200':
+          description: CSRF token and HttpOnly browser-context cookie
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  data:
+                    type: object
+                    required: [csrfToken]
+                    properties:
+                      csrfToken:
+                        type: string
   /api/v1/auth/register:
     post:
       tags:
         - Auth
       summary: Register a new account
       operationId: registerUser
-      x-streamlab-status: planned
+      x-streamlab-status: implemented
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          description: HMAC CSRF token obtained from GET /api/v1/auth/csrf
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -71,6 +108,12 @@ paths:
                 $ref: '#/components/schemas/SuccessAuthSession'
         '400':
           description: Invalid JSON or request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Invalid Origin or CSRF token
           content:
             application/json:
               schema:
@@ -99,10 +142,15 @@ paths:
         - Auth
       summary: Log in
       operationId: loginUser
-      description:
-        Response body contains short-lived access token. Rotating refresh token is issued as HttpOnly
-        secure cookie.
-      x-streamlab-status: planned
+      description: Same-origin browser login. Requires pre-auth CSRF context and Origin. Short-lived access token returned in JSON; refresh token issued as HttpOnly cookie (rotation is STREAM-002.4).
+      x-streamlab-status: implemented
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          description: Token obtained from GET /api/v1/auth/csrf and matching browser context cookie
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -128,6 +176,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Invalid Origin or CSRF token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '422':
           description: Validation failed
           content:
@@ -146,7 +200,7 @@ paths:
         - Auth
       summary: Rotate refresh token
       operationId: refreshSession
-      x-streamlab-status: planned
+      x-streamlab-status: implemented
       security: &id001
         - refreshCookie: []
       parameters:
@@ -187,20 +241,14 @@ paths:
       tags:
         - Auth
       summary: Revoke refresh session
+      description: Logout is idempotent when the refresh cookie is missing or already invalid. Requires Origin and X-CSRF-Token with a valid CSRF context cookie. Clears the refresh cookie and rotates the CSRF context; successful response has no body.
       operationId: logout
-      x-streamlab-status: planned
-      security: *id001
+      x-streamlab-status: implemented
       parameters:
         - *id002
       responses:
         '204':
           description: Session revoked
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiError'
         '403':
           description: Forbidden
           content:
@@ -212,8 +260,9 @@ paths:
       tags:
         - Users
       summary: Current user
+      description: Requires signed access JWT and an active non-revoked PostgreSQL session. Current user role is loaded from the database.
       operationId: getCurrentUser
-      x-streamlab-status: planned
+      x-streamlab-status: implemented
       security: &id003
         - bearerAuth: []
       responses:
@@ -869,9 +918,11 @@ components:
         email:
           type: string
           format: email
+          maxLength: 255
         password:
           type: string
           minLength: 1
+          maxLength: 128
       required:
         - email
         - password

@@ -1,6 +1,7 @@
 import { Clapperboard, LayoutDashboard } from 'lucide-react';
 import { Link, NavLink } from 'react-router';
 import { cn } from '@/lib/utils';
+import { AuthHeaderActions } from '@/features/auth/components/AuthHeaderActions';
 
 export function Header() {
   return (
@@ -36,6 +37,7 @@ export function Header() {
             İçerik paneli
           </NavLink>
         </nav>
+        <AuthHeaderActions />
       </div>
     </header>
   );

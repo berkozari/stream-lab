@@ -73,6 +73,7 @@ model AuthSession {
   revokedAt        DateTime? @db.Timestamptz(3)
   createdAt        DateTime  @default(now()) @db.Timestamptz(3)
 
+  consumedTokens ConsumedRefreshToken[]
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId, expiresAt])
@@ -189,4 +190,14 @@ model WatchProgress {
 
   @@id([userId, videoId])
   @@index([userId, lastWatchedAt])
+}
+
+model ConsumedRefreshToken {
+  tokenHash  String   @id @db.VarChar(128)
+  sessionId  String   @db.Uuid
+  consumedAt DateTime @default(now()) @db.Timestamptz(3)
+
+  session AuthSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+
+  @@index([sessionId])
 }

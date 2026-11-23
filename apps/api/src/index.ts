@@ -1,12 +1,14 @@
 import { createApp } from './app.js';
 import { env } from './config/env.js';
+import { getAuthSecrets } from './config/auth-env.js';
 import { getDatabaseUrl } from './config/database-url.js';
 import { disconnectDatabase } from './config/database.js';
 import { disconnectRedis } from './config/redis.js';
 import { logger } from './lib/logger.js';
 
-// Validate database configuration before opening the HTTP port.
+// Validate database and auth secrets before opening the HTTP port.
 getDatabaseUrl();
+getAuthSecrets();
 
 const server = createApp().listen(env.PORT, () => {
   logger.info({ port: env.PORT }, 'StreamLab API listening');

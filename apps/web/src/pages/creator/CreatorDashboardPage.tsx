@@ -13,11 +13,11 @@ export function CreatorDashboardPage() {
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
         <div className="flex items-center gap-2 font-semibold">
           <AlertCircle className="size-4" aria-hidden="true" />
-          Henüz erişim koruması yok
+          Oturum doğrulaması etkin
         </div>
         <p className="mt-2">
-          Authentication ve protected routes STREAM-002 kapsamında geliştirilecek. Bu sayfa şu an
-          yalnızca görünüm taslağıdır; gerçek içerik yönetimi sunmaz.
+          Bu sayfaya yalnızca giriş yapmış kullanıcılar ulaşabilir. İçerik yönetimi işlevleri
+          sonraki milestone'larda eklenecek.
         </p>
       </div>
       <div className="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card p-8 text-center">
