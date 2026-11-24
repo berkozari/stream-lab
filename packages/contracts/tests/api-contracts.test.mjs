@@ -55,7 +55,7 @@ test('upload size uses a JSON-safe decimal string', () => {
     CreateUploadRequestSchema.safeParse({
       fileName: 'example.mp4',
       contentType: 'video/mp4',
-      sizeBytes: '1099511627776',
+      sizeBytes: '2147483648',
     }).success,
     true,
   );
