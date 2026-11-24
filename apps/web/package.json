@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "preview": "vite preview",
     "test:auth": "node --experimental-strip-types --test tests/auth-state.test.ts tests/auth-utils.test.ts",
-    "test:auth:ui": "node --experimental-strip-types --test tests/auth-ui.test.ts"
+    "test:auth:ui": "node --experimental-strip-types --test tests/auth-ui.test.ts",
+    "test:video:client": "node --experimental-strip-types --test tests/video-query.test.ts tests/video-client.test.ts",
+    "test:video:ui": "node --experimental-strip-types --test tests/video-ui.test.ts"
   },
   "dependencies": {
     "@streamlab/contracts": "workspace:*",

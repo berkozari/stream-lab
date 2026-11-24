@@ -12,7 +12,10 @@ for (const file of required) assert.ok(existsSync(file), `Missing E2E file: ${fi
 
 assert.ok(root.devDependencies['@playwright/test'], 'Missing @playwright/test dependency');
 assert.equal(root.scripts['verify:auth:e2e'], 'node scripts/verify-stream-002-9.mjs');
-assert.equal(root.scripts['test:auth:e2e'], 'playwright test --config=playwright.config.ts');
+assert.equal(
+  root.scripts['test:auth:e2e'],
+  'playwright test apps/web/tests/e2e/auth-flow.spec.ts --config=playwright.config.ts',
+);
 assert.ok(root.scripts.check.includes('pnpm verify:auth:e2e'));
 assert.ok(!root.scripts.check.includes('pnpm test:auth:e2e'), 'Browser E2E needs separate infra');
 

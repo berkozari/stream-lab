@@ -13,16 +13,22 @@ export const VideoStatusSchema = z.enum([
 ]);
 export const VideoVisibilitySchema = z.enum(['PRIVATE', 'UNLISTED', 'PUBLIC']);
 
-export const CreateVideoRequestSchema = z.object({
+const UniqueCategoryIdsSchema = z
+  .array(IdSchema)
+  .max(10)
+  .refine((ids) => new Set(ids).size === ids.length, 'Category IDs must be unique');
+
+export const CreateVideoRequestSchema = z.strictObject({
   title: z.string().trim().min(1).max(160),
   description: z.string().max(10_000).nullable().optional(),
-  categoryIds: z.array(IdSchema).max(10).default([]),
+  categoryIds: UniqueCategoryIdsSchema.default([]),
 });
+
 export const UpdateVideoRequestSchema = z
-  .object({
+  .strictObject({
     title: z.string().trim().min(1).max(160).optional(),
     description: z.string().max(10_000).nullable().optional(),
-    categoryIds: z.array(IdSchema).max(10).optional(),
+    categoryIds: UniqueCategoryIdsSchema.optional(),
     visibility: VideoVisibilitySchema.optional(),
   })
   .refine((value) => Object.keys(value).length > 0, 'At least one field is required');
@@ -41,8 +47,9 @@ export const VideoResponseSchema = z.object({
 });
 export const VideoListQuerySchema = PageQuerySchema.extend({
   q: z.string().trim().min(1).max(100).optional(),
-  category: z.string().min(1).max(100).optional(),
-});
+  category: z.string().trim().min(1).max(100).optional(),
+}).strict();
+
 export const VideoListResponseSchema = z.object({
   items: z.array(VideoResponseSchema),
   nextCursor: z.string().nullable(),

@@ -6,6 +6,11 @@ import { allowedOrigins } from './config/env.js';
 import { createHealthRouter } from './routes/health.routes.js';
 import { createAuthRouter } from './routes/auth.routes.js';
 import { createUserRouter } from './routes/user.routes.js';
+import { createVideoRouter } from './routes/video.routes.js';
+import type { CreateVideoHandler } from './services/video.service.js';
+import type { VideoListHandler, VideoDetailHandler } from './services/video-read.service.js';
+import type { UpdateVideoHandler } from './services/video-update.service.js';
+import type { DeleteVideoHandler } from './services/video-delete.service.js';
 import type { LogoutHandler } from './services/session.service.js';
 import type { RequestHandler } from 'express';
 import type { RegisterHandler, LoginHandler } from './services/auth.service.js';
@@ -23,6 +28,11 @@ type AppOptions = {
   refresh?: RefreshHandler;
   logout?: LogoutHandler;
   authenticate?: RequestHandler;
+  videoCreate?: CreateVideoHandler;
+  videoList?: VideoListHandler;
+  videoDetail?: VideoDetailHandler;
+  videoUpdate?: UpdateVideoHandler;
+  videoDelete?: DeleteVideoHandler;
 };
 
 /** Configure Express without starting an HTTP listener (testable app factory). */
@@ -56,6 +66,17 @@ export function createApp(options: AppOptions = {}) {
     }),
   );
   app.use('/api/v1/users', createUserRouter(options.authenticate));
+  app.use(
+    '/api/v1/videos',
+    createVideoRouter({
+      authenticate: options.authenticate,
+      create: options.videoCreate,
+      list: options.videoList,
+      detail: options.videoDetail,
+      update: options.videoUpdate,
+      delete: options.videoDelete,
+    }),
+  );
   app.use(notFoundMiddleware);
   app.use(errorMiddleware);
   return app;
