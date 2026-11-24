@@ -29,7 +29,16 @@
     "test:session": "node --import tsx --test tests/unit/session-authorization.test.ts tests/integration/auth-session.http.test.ts",
     "smoke:session": "tsx scripts/auth-session-smoke.ts",
     "test:security": "node --import tsx --test tests/unit/auth-security-hardening.test.ts tests/integration/auth-security.http.test.ts",
-    "smoke:security": "tsx scripts/auth-security-smoke.ts"
+    "smoke:security": "tsx scripts/auth-security-smoke.ts",
+    "smoke:video:model": "tsx scripts/video-domain-smoke.ts",
+    "test:video:create": "node --import tsx --test tests/unit/video-create.service.test.ts tests/integration/video-create.http.test.ts",
+    "smoke:video:create": "tsx scripts/video-create-smoke.ts",
+    "test:video:read": "node --import tsx --test tests/unit/video-read.service.test.ts tests/integration/video-read.http.test.ts",
+    "smoke:video:read": "tsx scripts/video-read-smoke.ts",
+    "test:video:update": "node --import tsx --test tests/unit/video-update.service.test.ts tests/integration/video-update.http.test.ts",
+    "smoke:video:update": "tsx scripts/video-update-smoke.ts",
+    "test:video:delete": "node --import tsx --test tests/unit/video-delete.service.test.ts tests/integration/video-delete.http.test.ts",
+    "smoke:video:delete": "tsx scripts/video-delete-smoke.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",

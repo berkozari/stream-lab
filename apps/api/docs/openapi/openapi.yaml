@@ -285,7 +285,8 @@ paths:
       summary: Discover published videos
       operationId: listVideos
       description: Only PUBLIC, READY, non-deleted videos are discoverable.
-      x-streamlab-status: planned
+      x-streamlab-status: implemented
+
       parameters:
         - name: limit
           in: query
@@ -337,7 +338,7 @@ paths:
       summary: Create video draft
       operationId: createVideo
       description: Starts PRIVATE and DRAFT; does not upload a binary file.
-      x-streamlab-status: planned
+      x-streamlab-status: implemented
       security: *id003
       requestBody:
         required: true
@@ -364,6 +365,61 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /api/v1/videos/mine:
+    get:
+      tags:
+        - Videos
+      summary: List videos owned by the current user
+      operationId: listOwnedVideos
+      description: Authenticated owner can list drafts and processing videos, excluding soft-deleted records.
+      x-streamlab-status: implemented
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+        - name: q
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: category
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        '200':
+          description: Current user's non-deleted videos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessVideoList'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
   /api/v1/videos/{videoId}:
     get:
       tags:
@@ -371,7 +427,8 @@ paths:
       summary: Get video details
       operationId: getVideo
       description: Public/unlisted videos may be readable without token; PRIVATE requires owner or admin.
-      x-streamlab-status: planned
+      x-streamlab-status: implemented
+
       security: &id005
         - {}
         - bearerAuth: []
@@ -408,7 +465,7 @@ paths:
         - Videos
       summary: Update video metadata
       operationId: updateVideo
-      x-streamlab-status: planned
+      x-streamlab-status: implemented
       security: *id003
       parameters:
         - *id004
@@ -458,9 +515,9 @@ paths:
     delete:
       tags:
         - Videos
-      summary: Schedule video deletion
+      summary: Soft-delete video (storage cleanup deferred)
       operationId: deleteVideo
-      x-streamlab-status: planned
+      x-streamlab-status: implemented
       security: *id003
       parameters:
         - *id004
@@ -1005,6 +1062,7 @@ components:
         - updatedAt
     CreateVideoRequest:
       type: object
+      additionalProperties: false
       properties:
         title:
           type: string
@@ -1017,6 +1075,8 @@ components:
             - type: 'null'
         categoryIds:
           type: array
+          maxItems: 10
+          uniqueItems: true
           items:
             type: string
             format: uuid
@@ -1024,6 +1084,7 @@ components:
         - title
     UpdateVideoRequest:
       type: object
+      additionalProperties: false
       minProperties: 1
       properties:
         title:
@@ -1037,6 +1098,8 @@ components:
             - type: 'null'
         categoryIds:
           type: array
+          maxItems: 10
+          uniqueItems: true
           items:
             type: string
             format: uuid
