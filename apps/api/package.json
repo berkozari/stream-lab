@@ -38,7 +38,17 @@
     "test:video:update": "node --import tsx --test tests/unit/video-update.service.test.ts tests/integration/video-update.http.test.ts",
     "smoke:video:update": "tsx scripts/video-update-smoke.ts",
     "test:video:delete": "node --import tsx --test tests/unit/video-delete.service.test.ts tests/integration/video-delete.http.test.ts",
-    "smoke:video:delete": "tsx scripts/video-delete-smoke.ts"
+    "smoke:video:delete": "tsx scripts/video-delete-smoke.ts",
+    "test:upload:storage": "node --import tsx --test tests/unit/storage.service.test.ts",
+    "smoke:upload:storage": "tsx scripts/storage-smoke.ts",
+    "test:upload:session": "node --import tsx --test tests/unit/upload-session.service.test.ts tests/integration/upload-session.http.test.ts",
+    "smoke:upload:session": "tsx scripts/upload-session-smoke.ts",
+    "test:upload:sign": "node --import tsx --test tests/unit/upload-sign.service.test.ts tests/integration/upload-sign.http.test.ts",
+    "smoke:upload:sign": "tsx scripts/upload-sign-smoke.ts",
+    "test:upload:complete": "node --import tsx --test tests/unit/upload-complete.service.test.ts tests/unit/upload-verify-storage.test.ts tests/integration/upload-complete.http.test.ts",
+    "smoke:upload:complete": "tsx scripts/upload-complete-smoke.ts",
+    "test:upload:multipart": "node --import tsx --test tests/unit/multipart-parts.test.ts tests/unit/upload-multipart.service.test.ts tests/integration/upload-multipart.http.test.ts",
+    "smoke:upload:multipart": "tsx scripts/upload-multipart-smoke.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
@@ -55,7 +65,9 @@
     "bullmq": "^6.7.8",
     "argon2": "^0.45.2",
     "jose": "^6.2.18",
-    "express-rate-limit": "^8.0.0"
+    "express-rate-limit": "^8.0.0",
+    "@aws-sdk/client-s3": "^3.1175.0",
+    "@aws-sdk/s3-request-presigner": "^3.1175.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

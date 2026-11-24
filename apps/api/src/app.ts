@@ -1,3 +1,4 @@
+import type { MultipartUploadService } from './services/upload-multipart.service.js';
 import type { RefreshHandler } from './services/refresh.service.js';
 import express from 'express';
 import cors from 'cors';
@@ -7,10 +8,14 @@ import { createHealthRouter } from './routes/health.routes.js';
 import { createAuthRouter } from './routes/auth.routes.js';
 import { createUserRouter } from './routes/user.routes.js';
 import { createVideoRouter } from './routes/video.routes.js';
+import { createUploadRouter } from './routes/upload.routes.js';
 import type { CreateVideoHandler } from './services/video.service.js';
 import type { VideoListHandler, VideoDetailHandler } from './services/video-read.service.js';
 import type { UpdateVideoHandler } from './services/video-update.service.js';
 import type { DeleteVideoHandler } from './services/video-delete.service.js';
+import type { CreateUploadSessionHandler } from './services/upload-session.service.js';
+import type { SignUploadHandler } from './services/upload-sign.service.js';
+import type { CompleteUploadHandler } from './services/upload-complete.service.js';
 import type { LogoutHandler } from './services/session.service.js';
 import type { RequestHandler } from 'express';
 import type { RegisterHandler, LoginHandler } from './services/auth.service.js';
@@ -33,6 +38,11 @@ type AppOptions = {
   videoDetail?: VideoDetailHandler;
   videoUpdate?: UpdateVideoHandler;
   videoDelete?: DeleteVideoHandler;
+  videoUploadCreate?: CreateUploadSessionHandler;
+  uploadSign?: SignUploadHandler;
+  uploadComplete?: CompleteUploadHandler;
+  uploadMultipart?: MultipartUploadService;
+  videoMultipartCreate?: MultipartUploadService['initiate'];
 };
 
 /** Configure Express without starting an HTTP listener (testable app factory). */
@@ -75,6 +85,17 @@ export function createApp(options: AppOptions = {}) {
       detail: options.videoDetail,
       update: options.videoUpdate,
       delete: options.videoDelete,
+      uploadCreate: options.videoUploadCreate,
+      multipartCreate: options.videoMultipartCreate,
+    }),
+  );
+  app.use(
+    '/api/v1/uploads',
+    createUploadRouter({
+      authenticate: options.authenticate,
+      sign: options.uploadSign,
+      complete: options.uploadComplete,
+      multipart: options.uploadMultipart,
     }),
   );
   app.use(notFoundMiddleware);

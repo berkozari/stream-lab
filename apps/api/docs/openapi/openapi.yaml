@@ -629,8 +629,8 @@ paths:
         - Uploads
       summary: Create direct-upload session
       operationId: createUpload
-      description: Returns temporary direct-to-storage URL. Do not send binary media through the Express API.
-      x-streamlab-status: planned
+      description: Creates a database upload session. A separate signing endpoint will issue the direct PUT URL in STREAM-004.5.
+      x-streamlab-status: implemented
       security: *id003
       parameters:
         - *id004
@@ -642,11 +642,11 @@ paths:
               $ref: '#/components/schemas/CreateUploadRequest'
       responses:
         '201':
-          description: Presigned single-PUT upload session
+          description: Upload session created; no storage capability issued yet
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessUploadSession'
+                $ref: '#/components/schemas/SuccessUploadSessionCreated'
         '401':
           description: Unauthorized
           content:
@@ -683,16 +683,164 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /api/v1/uploads/{uploadId}/sign:
+    post:
+      tags:
+        - Uploads
+      summary: Sign a direct single-PUT staging upload
+      operationId: signUploadPut
+      description: Returns a short-lived browser PUT capability for an owned active upload session. The object is not verified until completion.
+      x-streamlab-status: implemented
+      security: *id003
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignUploadRequest'
+      responses:
+        '200':
+          description: Signed single PUT with required headers and expiry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessUploadSigned'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Upload not found
+        '409':
+          description: Upload not active or signable
+        '410':
+          description: Upload expired
+        '422':
+          description: Validation failed
+  /api/v1/videos/{videoId}/uploads/multipart:
+    post:
+      tags: [Uploads]
+      summary: Initiate a multipart upload over 100 MiB
+      operationId: createMultipartUpload
+      x-streamlab-status: implemented
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: videoId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateUploadRequest' }
+      responses:
+        '201': { description: Multipart session created with no public S3 upload ID }
+        '401': { description: Unauthorized }
+        '404': { description: Video not found }
+        '409': { description: Upload already active }
+        '422': { description: Invalid upload metadata or multipart size }
+  /api/v1/uploads/{uploadId}/parts/sign:
+    post:
+      tags: [Uploads]
+      summary: Create a time-limited URL for one multipart part
+      operationId: signMultipartPart
+      x-streamlab-status: implemented
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MultipartSignRequest' }
+      responses:
+        '200': { description: Signed PUT URL and required headers; do not cache }
+        '401': { description: Unauthorized }
+        '404': { description: Upload not found }
+        '410': { description: Session expired }
+        '422': { description: Invalid part number }
+  /api/v1/uploads/{uploadId}/parts:
+    get:
+      tags: [Uploads]
+      summary: List uploaded multipart parts for recovery
+      operationId: listMultipartParts
+      x-streamlab-status: implemented
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Current S3 part ETags and sizes for resume }
+        '401': { description: Unauthorized }
+        '404': { description: Upload not found }
+  /api/v1/uploads/{uploadId}/multipart/complete:
+    post:
+      tags: [Uploads]
+      summary: Assemble multipart parts and verify trusted original
+      operationId: completeMultipartUpload
+      x-streamlab-status: implemented
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MultipartCompleteRequest' }
+      responses:
+        '200':
+          description: Complete verified original
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessUploadComplete' }
+        '401': { description: Unauthorized }
+        '404': { description: Upload not found }
+        '409': { description: Parts missing or different from S3 }
+        '422': { description: Invalid part receipt }
+  /api/v1/uploads/{uploadId}/multipart:
+    delete:
+      tags: [Uploads]
+      summary: Abort multipart upload and reject future part URLs
+      operationId: abortMultipartUpload
+      x-streamlab-status: implemented
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Multipart session aborted }
+        '401': { description: Unauthorized }
+        '404': { description: Upload not found }
+        '409': { description: Already verified }
   /api/v1/uploads/{uploadId}/complete:
     post:
       tags:
         - Uploads
       summary: Verify completed upload
       operationId: completeUpload
-      description:
-        Server verifies object metadata and integrity before queuing. A client notification alone is
-        not proof of upload.
-      x-streamlab-status: planned
+      description: Server verifies streamed object bytes and SHA-256 before conditional copy to a private verified bucket and atomic DB transition. No processing job is queued.
+      x-streamlab-status: implemented
       security: *id003
       parameters:
         - name: uploadId
@@ -703,8 +851,8 @@ paths:
             type: string
             format: uuid
       responses:
-        '202':
-          description: Upload verified and processing queued or pending
+        '200':
+          description: Upload verified and stored as an ORIGINAL; media processing is not queued yet
           content:
             application/json:
               schema:
@@ -733,6 +881,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '410':
+          description: Upload session expired
         '422':
           description: Validation failed
           content:
@@ -1143,25 +1293,72 @@ components:
         - failureMessage
     CreateUploadRequest:
       type: object
+      additionalProperties: false
+      description: >-
+        Client-declared upload metadata only. Accepts 1 byte through 2 GiB as a decimal
+        string; single PUT is limited to 100 MiB. The server verifies actual bytes,
+        media format, and checksum before accepting an original.
       properties:
         fileName:
           type: string
           minLength: 1
           maxLength: 255
+          description: >-
+            Display-only filename, without path separators or control characters.
+            The .mp4/.webm extension must agree with contentType.
         contentType:
           type: string
-          minLength: 1
-          maxLength: 255
+          enum:
+            - video/mp4
+            - video/webm
         sizeBytes:
           type: string
           pattern: ^[1-9][0-9]{0,18}$
+          description: Positive decimal string, maximum 2147483648 (2 GiB) bytes.
         checksumSha256:
           type: string
           pattern: ^[a-f0-9]{64}$
+          description: Optional lowercase hexadecimal SHA-256 of the entire original.
       required:
         - fileName
         - contentType
         - sizeBytes
+    SignUploadRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        contentType:
+          type: string
+          enum:
+            - video/mp4
+            - video/webm
+      required:
+        - contentType
+    UploadSessionCreated:
+      type: object
+      additionalProperties: false
+      properties:
+        uploadId:
+          type: string
+          format: uuid
+        videoId:
+          type: string
+          format: uuid
+        mode:
+          type: string
+          const: SINGLE
+        status:
+          type: string
+          const: INITIATED
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+        - uploadId
+        - videoId
+        - mode
+        - status
+        - expiresAt
     UploadSession:
       type: object
       properties:
@@ -1195,6 +1392,28 @@ components:
         - uploadUrl
         - headers
         - expiresAt
+    MultipartSignRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        partNumber: { type: integer, minimum: 1, maximum: 10000 }
+      required: [partNumber]
+    MultipartCompleteRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        parts:
+          type: array
+          minItems: 1
+          maxItems: 256
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              partNumber: { type: integer, minimum: 1 }
+              etag: { type: string, minLength: 1, maxLength: 256 }
+            required: [partNumber, etag]
+      required: [parts]
     UploadComplete:
       type: object
       properties:
@@ -1213,6 +1432,104 @@ components:
         - videoId
         - uploadId
         - status
+    CreateMultipartUploadRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateUploadRequest'
+      description: >-
+        Planned STREAM-004.7 only. For files larger than 104857600 bytes (100 MiB)
+        and at most 2147483648 bytes (2 GiB). No multipart route is implemented.
+    MultipartPartReceipt:
+      type: object
+      additionalProperties: false
+      properties:
+        partNumber:
+          type: integer
+          minimum: 1
+          maximum: 10000
+        etag:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Storage ETag, not a proof of SHA-256 content integrity.
+      required:
+        - partNumber
+        - etag
+    SignMultipartPartRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        partNumber:
+          type: integer
+          minimum: 1
+          maximum: 10000
+      required:
+        - partNumber
+    SignMultipartPartResponse:
+      type: object
+      properties:
+        partNumber:
+          type: integer
+          minimum: 1
+          maximum: 10000
+        method:
+          type: string
+          const: PUT
+        uploadUrl:
+          type: string
+          format: uri
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+        - partNumber
+        - method
+        - uploadUrl
+        - headers
+        - expiresAt
+    CompleteMultipartUploadRequest:
+      type: object
+      additionalProperties: false
+      description: >-
+        Planned STREAM-004.7 only. Server verifies ownership, order, number of
+        parts, actual object size and content before immutable promotion.
+      properties:
+        parts:
+          type: array
+          minItems: 1
+          maxItems: 256
+          description: Ordered consecutive part numbers beginning with 1.
+          items:
+            $ref: '#/components/schemas/MultipartPartReceipt'
+      required:
+        - parts
+    CreateMultipartUploadResponse:
+      type: object
+      properties:
+        uploadId:
+          type: string
+          format: uuid
+        videoId:
+          type: string
+          format: uuid
+        mode:
+          type: string
+          const: MULTIPART
+        partSizeBytes:
+          type: integer
+          const: 8388608
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+        - uploadId
+        - videoId
+        - mode
+        - partSizeBytes
+        - expiresAt
     Playback:
       type: object
       properties:
@@ -1326,6 +1643,28 @@ components:
           const: true
         data:
           $ref: '#/components/schemas/VideoProcessing'
+      required:
+        - success
+        - data
+    SuccessUploadSigned:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/UploadSession'
+      required:
+        - success
+        - data
+    SuccessUploadSessionCreated:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          $ref: '#/components/schemas/UploadSessionCreated'
       required:
         - success
         - data

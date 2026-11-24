@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import {
+  UploadCloud,
   CircleAlert,
   LoaderCircle,
   Pencil,
@@ -13,6 +14,7 @@ import { useMyVideos } from '../hooks/useVideoQueries';
 import { useCreateVideo, useDeleteVideo, useUpdateVideo } from '../hooks/useVideoMutations';
 import { VideoDeleteDialog } from './VideoDeleteDialog';
 import { VideoMetadataForm, type VideoMetadataInput } from './VideoMetadataForm';
+import { VideoUploadPanel } from './VideoUploadPanel';
 import {
   VIDEO_STATUS_LABELS,
   VIDEO_VISIBILITY_LABELS,
@@ -29,6 +31,7 @@ export function CreatorVideoManagement() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Video | null>(null);
   const [deleting, setDeleting] = useState<Video | null>(null);
+  const [uploadingVideoId, setUploadingVideoId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const videos = useMyVideos({ ...(searchTerm ? { q: searchTerm } : {}), limit: 12 });
@@ -56,7 +59,7 @@ export function CreatorVideoManagement() {
           description: input.description,
           categoryIds: [],
         });
-        setNotice('Video taslağı oluşturuldu. Dosya yükleme özelliği sonraki aşamada eklenecek.');
+        setNotice('Video taslağı oluşturuldu. Listeden “Dosya yükle” ile devam edebilirsin.');
       }
       setEditing(null);
       setCreating(false);
@@ -220,6 +223,21 @@ export function CreatorVideoManagement() {
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
+                  {(video.status === 'DRAFT' || video.status === 'UPLOADING') && (
+                    <button
+                      type="button"
+                      className={actionClass}
+                      disabled={editingOrCreating}
+                      aria-label="Video dosyasını yükle"
+                      onClick={() => {
+                        setUploadingVideoId((current) => (current === video.id ? null : video.id));
+                        setNotice('');
+                      }}
+                    >
+                      <UploadCloud className="size-4" aria-hidden="true" />
+                      Dosya yükle
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={actionClass}
@@ -247,6 +265,21 @@ export function CreatorVideoManagement() {
                     Sil
                   </button>
                 </div>
+
+                {uploadingVideoId === video.id && (
+                  <div className="w-full">
+                    <VideoUploadPanel
+                      key={video.id}
+                      videoId={video.id}
+                      videoTitle={video.title}
+                      onClose={() => setUploadingVideoId(null)}
+                      onCompleted={() => {
+                        setUploadingVideoId(null);
+                        setNotice('Video dosyası doğrulandı.');
+                      }}
+                    />
+                  </div>
+                )}
               </li>
             ))}
           </ul>

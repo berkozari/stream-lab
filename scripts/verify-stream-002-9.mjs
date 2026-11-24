@@ -6,7 +6,6 @@ const required = [
   'playwright.config.ts',
   'apps/web/tests/e2e/auth-flow.spec.ts',
   'apps/api/scripts/auth-e2e-cleanup.ts',
-  'STREAM-002.9_INSTALL.md',
 ];
 for (const file of required) assert.ok(existsSync(file), `Missing E2E file: ${file}`);
 

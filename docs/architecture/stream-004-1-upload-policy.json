@@ -1,0 +1,28 @@
+{
+  "milestone": "STREAM-004.1",
+  "scope": "architecture-only",
+  "maxFileSizeBytes": 2147483648,
+  "singlePutLimitBytes": 104857600,
+  "minFileSizeBytes": 1,
+  "maxOriginalFileNameLength": 255,
+  "allowedMediaTypes": {
+    "video/mp4": [".mp4"],
+    "video/webm": [".webm"]
+  },
+  "presignedUrlTtlSeconds": 600,
+  "uploadSessionTtlSeconds": 86400,
+  "multipartPartSizeBytes": 8388608,
+  "maxActiveUploadSessionsPerVideo": 1,
+  "maxStartedSessionsPerUserPerHour": 20,
+  "uploadBucketEnv": "S3_UPLOAD_BUCKET",
+  "mediaBucketEnv": "S3_MEDIA_BUCKET",
+  "stagingKeyTemplate": "staging/<videoId>/<uploadId>/source",
+  "verifiedKeyTemplate": "originals/<videoId>/<uploadId>/source",
+  "uploadUrlsAreBearerCapabilities": true,
+  "clientControlsStorageKeys": false,
+  "anonymousBucketsAllowed": false,
+  "objectVerificationRequiredBeforeProcessing": true,
+  "workerReadsOnlyVerifiedKeys": true,
+  "multipartCompletionRequiresServerVerification": true,
+  "storageCredentialsInBrowser": false
+}
