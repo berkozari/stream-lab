@@ -92,7 +92,7 @@ test('single PUT verifies after transfer and only then reports 100%', async () =
       },
       completeSingle: async () => {
         calls.push('verify');
-        return { uploadId, videoId, status: 'UPLOADED' };
+        return { uploadId, videoId, status: 'QUEUED' };
       },
     }),
   });
@@ -325,7 +325,7 @@ test('invalid server completion response never claims upload success', async () 
   const flow = createVideoUploadFlow({
     ownerId,
     gateway: gateway({
-      completeSingle: async () => ({ uploadId, videoId, status: 'QUEUED' }),
+      completeSingle: async () => ({ uploadId: randomUUID(), videoId, status: 'QUEUED' }),
     }),
     storage: memory(),
     transport: async () => ({}),
@@ -341,6 +341,27 @@ test('invalid server completion response never claims upload success', async () 
     /tamamlama yanıtı/,
   );
   assert.equal(seen.at(-1)?.phase, 'failed');
+  assert.ok(flow.read(videoId));
+});
+
+test('invalid server completion status is rejected even when session IDs match', async () => {
+  const flow = createVideoUploadFlow({
+    ownerId,
+    gateway: gateway({
+      completeSingle: async () => ({ uploadId, videoId, status: 'PROCESSING' }),
+    }),
+    storage: memory(),
+    transport: async () => ({}),
+  });
+  await assert.rejects(
+    flow.run({
+      videoId,
+      file: file(10),
+      signal: new AbortController().signal,
+      onProgress() {},
+    }),
+    /tamamlama yanıtı/,
+  );
   assert.ok(flow.read(videoId));
 });
 

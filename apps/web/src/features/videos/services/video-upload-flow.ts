@@ -432,7 +432,7 @@ function assertCompleted(
   if (
     result.videoId !== session.videoId ||
     result.uploadId !== session.uploadId ||
-    result.status !== 'UPLOADED'
+    (result.status !== 'UPLOADED' && result.status !== 'QUEUED')
   ) {
     throw new Error('Sunucu tamamlama yanıtı beklenen oturumla eşleşmiyor.');
   }

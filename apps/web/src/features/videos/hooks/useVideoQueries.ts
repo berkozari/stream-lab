@@ -3,6 +3,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { videoService } from '../services/video.service';
 import { videoKeys } from './video.keys';
 import type { VideoListFilters } from '../types/video.types';
+import { videoStatusRefetchInterval } from '../utils/video-status-polling';
 
 type PageFilters = Omit<VideoListFilters, 'cursor'>;
 
@@ -41,5 +42,6 @@ export function useVideoDetail(videoId?: string) {
         ? videoService.detail(videoId, signal)
         : Promise.reject(new Error('Missing video ID')),
     retry: false,
+    refetchInterval: (query) => videoStatusRefetchInterval(query.state.data?.status),
   });
 }

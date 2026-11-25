@@ -11,6 +11,12 @@ import { createVideoRouter } from './routes/video.routes.js';
 import { createUploadRouter } from './routes/upload.routes.js';
 import type { CreateVideoHandler } from './services/video.service.js';
 import type { VideoListHandler, VideoDetailHandler } from './services/video-read.service.js';
+import type { PlaybackHandler } from './services/playback.service.js';
+import type {
+  PlaybackManifestHandler,
+  PlaybackVariantHandler,
+  PlaybackSegmentHandler,
+} from './services/playback-hls.service.js';
 import type { UpdateVideoHandler } from './services/video-update.service.js';
 import type { DeleteVideoHandler } from './services/video-delete.service.js';
 import type { CreateUploadSessionHandler } from './services/upload-session.service.js';
@@ -36,6 +42,10 @@ type AppOptions = {
   videoCreate?: CreateVideoHandler;
   videoList?: VideoListHandler;
   videoDetail?: VideoDetailHandler;
+  videoPlayback?: PlaybackHandler;
+  videoPlaybackMaster?: PlaybackManifestHandler;
+  videoPlaybackVariant?: PlaybackVariantHandler;
+  videoPlaybackSegment?: PlaybackSegmentHandler;
   videoUpdate?: UpdateVideoHandler;
   videoDelete?: DeleteVideoHandler;
   videoUploadCreate?: CreateUploadSessionHandler;
@@ -83,6 +93,10 @@ export function createApp(options: AppOptions = {}) {
       create: options.videoCreate,
       list: options.videoList,
       detail: options.videoDetail,
+      playback: options.videoPlayback,
+      playbackMaster: options.videoPlaybackMaster,
+      playbackVariant: options.videoPlaybackVariant,
+      playbackSegment: options.videoPlaybackSegment,
       update: options.videoUpdate,
       delete: options.videoDelete,
       uploadCreate: options.videoUploadCreate,
