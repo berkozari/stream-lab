@@ -33,6 +33,7 @@
     "smoke:video:model": "tsx scripts/video-domain-smoke.ts",
     "test:video:create": "node --import tsx --test tests/unit/video-create.service.test.ts tests/integration/video-create.http.test.ts",
     "smoke:video:create": "tsx scripts/video-create-smoke.ts",
+    "test:playback": "node --import tsx --test tests/unit/playback.service.test.ts tests/unit/playback-hls.service.test.ts tests/integration/playback.http.test.ts",
     "test:video:read": "node --import tsx --test tests/unit/video-read.service.test.ts tests/integration/video-read.http.test.ts",
     "smoke:video:read": "tsx scripts/video-read-smoke.ts",
     "test:video:update": "node --import tsx --test tests/unit/video-update.service.test.ts tests/integration/video-update.http.test.ts",

@@ -13,7 +13,8 @@
     "test:video:client": "node --experimental-strip-types --test tests/video-query.test.ts tests/video-client.test.ts",
     "test:video:ui": "node --experimental-strip-types --test tests/video-ui.test.ts",
     "test:upload:direct": "node --experimental-strip-types --test tests/video-upload-client.test.ts",
-    "test:upload:ui": "node --experimental-strip-types --test tests/video-upload-flow.test.ts tests/video-upload-xhr.test.ts"
+    "test:upload:ui": "node --experimental-strip-types --test tests/video-upload-flow.test.ts tests/video-upload-xhr.test.ts",
+    "test:playback": "node --experimental-strip-types --test tests/playback-client.test.ts tests/playback-strategy.test.ts tests/playback-quality.test.ts tests/playback-status.test.ts tests/playback-renewal.test.ts tests/playback-resume.test.ts"
   },
   "dependencies": {
     "@streamlab/contracts": "workspace:*",
@@ -27,7 +28,8 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router": "^7.0.0",
-    "tailwind-merge": "^3.0.0"
+    "tailwind-merge": "^3.0.0",
+    "hls.js": "^1.7.4"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",
