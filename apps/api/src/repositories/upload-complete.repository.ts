@@ -1,5 +1,6 @@
 import { prisma } from '../config/database.js';
 import { AppError } from '../utils/app-error.js';
+import { stageTranscodingInTransaction } from './video-transcode-outbox.repository.js';
 
 export type UploadToComplete = {
   uploadMode?: 'SINGLE' | 'MULTIPART';
@@ -91,5 +92,8 @@ export async function finalizeOwnedUpload(
         sizeBytes: verified.sizeBytes,
       },
     });
+    // Same transaction: if queue staging fails, neither the verified upload nor
+    // the ORIGINAL asset is committed. Never connect to Redis in this transaction.
+    await stageTranscodingInTransaction(tx, upload.videoId);
   });
 }

@@ -48,7 +48,16 @@
     "test:upload:complete": "node --import tsx --test tests/unit/upload-complete.service.test.ts tests/unit/upload-verify-storage.test.ts tests/integration/upload-complete.http.test.ts",
     "smoke:upload:complete": "tsx scripts/upload-complete-smoke.ts",
     "test:upload:multipart": "node --import tsx --test tests/unit/multipart-parts.test.ts tests/unit/upload-multipart.service.test.ts tests/integration/upload-multipart.http.test.ts",
-    "smoke:upload:multipart": "tsx scripts/upload-multipart-smoke.ts"
+    "smoke:upload:multipart": "tsx scripts/upload-multipart-smoke.ts",
+    "test:transcoding:queue": "node --import tsx --test tests/unit/video-transcode-queue.service.test.ts",
+    "test:transcoding:outbox": "node --import tsx --test tests/unit/video-transcode-outbox.test.ts tests/unit/video-transcode-dispatch.service.test.ts",
+    "test:transcoding:outbox:db": "node --import tsx --test tests/integration/video-transcode-outbox.db.test.ts",
+    "test:transcoding:integration": "node --import tsx --test tests/unit/video-transcode-dispatcher-loop.test.ts tests/unit/upload-complete.service.test.ts",
+    "test:transcoding:integration:db": "node --import tsx --test tests/integration/video-auto-transcode.db.test.ts",
+    "smoke:transcoding:e2e": "tsx scripts/transcoding-e2e-smoke.ts",
+    "test:transcoding:recovery": "node --import tsx --test tests/unit/video-transcode-recovery.test.ts tests/unit/video-transcode-recovery-loop.test.ts",
+    "test:transcoding:recovery:db": "node --import tsx --test tests/integration/video-transcode-recovery.db.test.ts",
+    "test:transcoding:failure:live": "node --import tsx --test tests/integration/video-transcode-failure-recovery.live.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",

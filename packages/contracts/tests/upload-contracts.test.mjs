@@ -120,6 +120,11 @@ test('single-PUT and complete response schemas retain existing API shape', () =>
       .success,
     true,
   );
+  assert.equal(
+    CompleteUploadResponseSchema.safeParse({ videoId: uuid, uploadId: uuid, status: 'QUEUED' })
+      .success,
+    true,
+  );
 });
 
 test('multipart plans enforce part numbers, ascending receipts and strict DTOs', () => {
