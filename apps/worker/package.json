@@ -8,13 +8,24 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "start": "node dist/index.js",
-    "test:foundation": "node --import tsx --test tests/unit/smoke.processor.test.ts"
+    "test:foundation": "node --import tsx --test tests/unit/smoke.processor.test.ts",
+    "test:lifecycle": "node --import tsx --test tests/unit/video-processing-router.test.ts tests/unit/transcoding-lease.test.ts tests/unit/video-transcode-processor.test.ts",
+    "test:probe": "node --import tsx --test tests/unit/ffprobe.test.ts tests/unit/probe-video-source.test.ts tests/unit/original-storage.test.ts",
+    "test:hls": "node --import tsx --test tests/unit/hls-profiles.test.ts tests/unit/ffmpeg-hls.test.ts tests/unit/hls-storage.test.ts tests/unit/hls-publish.test.ts tests/unit/transcoding-ready.test.ts",
+    "test:hls:integration": "node --import tsx --test tests/integration/hls-ffmpeg.integration.test.ts",
+    "cleanup:hls:dry-run": "tsx src/maintenance/cleanup-hls-orphans.ts",
+    "cleanup:hls:execute": "tsx src/maintenance/cleanup-hls-orphans.ts --execute",
+    "test:cleanup": "node --import tsx --test tests/unit/hls-orphan-cleanup.test.ts",
+    "test:shutdown": "node --import tsx --test tests/unit/video-transcode-shutdown.test.ts tests/unit/hls-shutdown.test.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "tsx": "^4.20.0"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1175.0",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
     "bullmq": "^6.7.8",
     "ioredis": "^6.1.0",
     "@streamlab/contracts": "workspace:*",

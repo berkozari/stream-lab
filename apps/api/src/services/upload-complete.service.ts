@@ -52,7 +52,7 @@ export function createCompleteUploadService(
     return CompleteUploadResponseSchema.parse({
       videoId: session.videoId,
       uploadId: session.uploadId,
-      status: 'UPLOADED',
+      status: 'QUEUED',
     });
   };
 }

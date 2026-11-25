@@ -1,12 +1,17 @@
 import { Worker } from 'bullmq';
 import { Redis } from 'ioredis';
-import {
-  VIDEO_PROCESSING_QUEUE_NAME,
-  type QueueSmokeJobData,
-  type QueueSmokeJobResult,
-} from '@streamlab/contracts';
+import { VIDEO_PROCESSING_QUEUE_NAME } from '@streamlab/contracts';
 import { workerEnv } from '../config/env.js';
-import { processSmokeJob } from '../processors/smoke.processor.js';
+import {
+  createVideoProcessingRouter,
+  type ProcessingJobResult,
+} from '../processors/video-processing.router.js';
+import {
+  createVideoTranscodeProcessor,
+  transcodingLeaseOperations,
+} from '../processors/video-transcode.processor.js';
+import { publishHls } from '../services/transcoding/publish-hls.js';
+import { disconnectWorkerDatabase } from '../config/database.js';
 
 export async function startVideoProcessingWorker(): Promise<void> {
   // Long-running consumer: BullMQ requires maxRetriesPerRequest: null.
@@ -15,9 +20,19 @@ export async function startVideoProcessingWorker(): Promise<void> {
     console.error('[worker] Redis connection error:', error.message);
   });
 
-  const worker = new Worker<QueueSmokeJobData, QueueSmokeJobResult>(
+  // Shared by all active transcodes; SIGTERM/SIGINT cooperatively aborts FFmpeg
+  // and parks jobs for a later attempt without spending their retry budget.
+  const shutdownController = new AbortController();
+  const processor = createVideoProcessingRouter(
+    createVideoTranscodeProcessor({
+      ...transcodingLeaseOperations,
+      publishHls,
+      shutdownSignal: shutdownController.signal,
+    }),
+  );
+  const worker = new Worker<unknown, ProcessingJobResult>(
     VIDEO_PROCESSING_QUEUE_NAME,
-    processSmokeJob,
+    (job, token) => processor(job, token),
     { connection, concurrency: workerEnv.concurrency },
   );
   worker.on('completed', (job) => {
@@ -34,11 +49,12 @@ export async function startVideoProcessingWorker(): Promise<void> {
   async function shutdown(signal: string): Promise<void> {
     if (shuttingDown) return;
     shuttingDown = true;
-    console.info(`[worker] ${signal} received; waiting for active jobs to finish`);
+    console.info(`[worker] ${signal} received; cancelling active media work`);
+    shutdownController.abort(new Error('TRANSCODING_WORKER_SHUTDOWN'));
     const watchdog = setTimeout(() => {
       console.error('[worker] shutdown timed out');
       process.exit(1);
-    }, 10_000);
+    }, 30_000);
     watchdog.unref();
     try {
       await worker.close();
@@ -49,6 +65,7 @@ export async function startVideoProcessingWorker(): Promise<void> {
     } finally {
       clearTimeout(watchdog);
       connection.disconnect();
+      await disconnectWorkerDatabase();
     }
   }
 
@@ -67,6 +84,7 @@ export async function startVideoProcessingWorker(): Promise<void> {
   } catch (error) {
     await worker.close(true);
     connection.disconnect();
+    await disconnectWorkerDatabase();
     throw error;
   }
 }

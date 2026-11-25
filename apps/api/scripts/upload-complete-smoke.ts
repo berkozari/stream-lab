@@ -1,3 +1,5 @@
+// Run this legacy signature-only upload smoke while API/worker are STOPPED.
+// Its synthetic bytes are not decodable by FFmpeg. Use smoke:transcoding:e2e for live pipeline.
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { prisma } from '../src/config/database.js';
@@ -51,7 +53,7 @@ try {
   });
   assert.ok(put.ok, `Staging PUT failed: ${put.status}`);
   const result = await completeUpload(upload.id, user.id);
-  assert.deepEqual(result, { videoId: video.id, uploadId: upload.id, status: 'UPLOADED' });
+  assert.deepEqual(result, { videoId: video.id, uploadId: upload.id, status: 'QUEUED' });
   const [storedUpload, storedVideo, original] = await Promise.all([
     prisma.videoUpload.findUnique({ where: { id: upload.id } }),
     prisma.video.findUnique({ where: { id: video.id } }),
@@ -59,7 +61,9 @@ try {
   ]);
   assert.equal(storedUpload?.status, 'VERIFIED');
   assert.ok(storedUpload?.completedAt);
-  assert.equal(storedVideo?.status, 'UPLOADED');
+  assert.equal(storedVideo?.processingVersion, 1);
+  assert.notEqual(storedVideo?.status, 'UPLOADED');
+  assert.equal(await prisma.videoTranscodeOutbox.count({ where: { videoId: video.id } }), 1);
   assert.equal(storedVideo?.visibility, 'PRIVATE');
   assert.ok(original);
   originalKey = original.storageKey;
@@ -76,6 +80,8 @@ try {
     process.exitCode = 1;
   }
   try {
+    if (videoId) await prisma.videoTranscodeOutbox.deleteMany({ where: { videoId } });
+    if (videoId) await prisma.videoRendition.deleteMany({ where: { videoId } });
     if (videoId) await prisma.mediaAsset.deleteMany({ where: { videoId } });
     if (videoId) await prisma.videoUpload.deleteMany({ where: { videoId } });
     if (videoId) await prisma.video.deleteMany({ where: { id: videoId } });
@@ -86,6 +92,6 @@ try {
 }
 if (process.exitCode !== 1) {
   console.log(
-    'PASS: direct PUT -> streaming SHA256/signature -> conditional copy -> verified original -> UPLOADED',
+    'PASS: direct PUT -> streaming SHA256/signature -> conditional copy -> verified original -> QUEUED + durable outbox',
   );
 }

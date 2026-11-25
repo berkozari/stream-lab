@@ -46,7 +46,7 @@ before(async () => {
       if (id !== uploadId || uid !== ownerId) {
         throw new AppError(404, 'UPLOAD_NOT_FOUND', 'Upload not found');
       }
-      return { videoId, uploadId, status: 'UPLOADED' };
+      return { videoId, uploadId, status: 'QUEUED' };
     },
   });
   server = app.listen(0);
@@ -86,7 +86,7 @@ test('owner completes without exposing storage keys or signatures', async () => 
   assert.equal(response.headers.get('cache-control'), 'no-store');
   const payload = (await response.json()) as { success: boolean; data: Record<string, unknown> };
   assert.equal(payload.success, true);
-  assert.deepEqual(payload.data, { videoId, uploadId, status: 'UPLOADED' });
+  assert.deepEqual(payload.data, { videoId, uploadId, status: 'QUEUED' });
 });
 
 test('foreign-owned upload and nonexistent upload are indistinguishable', async () => {

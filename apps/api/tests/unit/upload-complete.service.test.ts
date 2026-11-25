@@ -77,7 +77,7 @@ test('completion persists only after verification and returns a minimal DTO', as
     },
     storage,
   );
-  assert.deepEqual(await complete(uploadId, ownerId), { videoId, uploadId, status: 'UPLOADED' });
+  assert.deepEqual(await complete(uploadId, ownerId), { videoId, uploadId, status: 'QUEUED' });
   assert.deepEqual(actions, ['read', 'verify', 'persist']);
 });
 

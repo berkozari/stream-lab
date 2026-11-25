@@ -1,3 +1,5 @@
+// Run this legacy signature-only upload smoke while API/worker are STOPPED.
+// Its synthetic bytes are not decodable by FFmpeg. Use smoke:transcoding:e2e for live pipeline.
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { UPLOAD_LIMITS } from '@streamlab/contracts';
@@ -66,7 +68,7 @@ try {
   const recovered = await multipartUpload.listParts(session.uploadId, user.id);
   assert.equal(recovered.parts.length, count);
   const result = await multipartUpload.complete(session.uploadId, user.id, { parts: receipts });
-  assert.deepEqual(result, { videoId: video.id, uploadId: session.uploadId, status: 'UPLOADED' });
+  assert.deepEqual(result, { videoId: video.id, uploadId: session.uploadId, status: 'QUEUED' });
   const [upload, storedVideo, original] = await Promise.all([
     prisma.videoUpload.findUnique({ where: { id: session.uploadId } }),
     prisma.video.findUnique({ where: { id: video.id } }),
@@ -74,7 +76,9 @@ try {
   ]);
   assert.equal(upload?.status, 'VERIFIED');
   assert.equal(upload?.storageUploadId, null);
-  assert.equal(storedVideo?.status, 'UPLOADED');
+  assert.equal(storedVideo?.processingVersion, 1);
+  assert.notEqual(storedVideo?.status, 'UPLOADED');
+  assert.equal(await prisma.videoTranscodeOutbox.count({ where: { videoId: video.id } }), 1);
   assert.ok(original);
   originalKey = original.storageKey;
   assert.equal(original.sizeBytes, BigInt(size));
@@ -102,6 +106,8 @@ try {
     process.exitCode = 1;
   }
   try {
+    if (videoId) await prisma.videoTranscodeOutbox.deleteMany({ where: { videoId } });
+    if (videoId) await prisma.videoRendition.deleteMany({ where: { videoId } });
     if (videoId) await prisma.mediaAsset.deleteMany({ where: { videoId } });
     if (videoId) await prisma.videoUpload.deleteMany({ where: { videoId } });
     if (videoId) await prisma.video.deleteMany({ where: { id: videoId } });
@@ -112,6 +118,6 @@ try {
 }
 if (process.exitCode !== 1) {
   console.log(
-    'PASS: MULTIPART 13 parts -> S3 recovery -> assembled -> SHA256/verified original -> UPLOADED',
+    'PASS: MULTIPART 13 parts -> S3 recovery -> assembled -> SHA256/verified original -> QUEUED + durable outbox',
   );
 }

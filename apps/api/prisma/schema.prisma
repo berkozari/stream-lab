@@ -5,6 +5,13 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
+// Same schema, separate generated runtime for the independently built worker.
+// All schema changes and migrations remain owned by apps/api.
+generator workerClient {
+  provider = "prisma-client"
+  output   = "../../worker/src/generated/prisma"
+}
+
 datasource db {
   provider = "postgresql"
 }
@@ -23,6 +30,13 @@ enum VideoStatus {
   READY
   FAILED
   DELETING
+}
+
+enum TranscodeDispatchStatus {
+  PENDING
+  DISPATCHING
+  DISPATCHED
+  CANCELLED
 }
 
 enum VideoVisibility {
@@ -87,6 +101,8 @@ model Video {
   status            VideoStatus     @default(DRAFT)
   visibility        VideoVisibility @default(PRIVATE)
   processingVersion Int             @default(0)
+  processingLeaseToken String?        @db.Uuid
+  processingLeaseExpiresAt DateTime?  @db.Timestamptz(3)
   durationSeconds   Int?
   publishedAt       DateTime?       @db.Timestamptz(3)
   deletedAt         DateTime?       @db.Timestamptz(3)
@@ -97,6 +113,7 @@ model Video {
   uploads       VideoUpload[]
   mediaAssets   MediaAsset[]
   renditions    VideoRendition[]
+  transcodeDispatches VideoTranscodeOutbox[]
   categories    VideoCategory[]
   watchProgress WatchProgress[]
 
@@ -155,6 +172,29 @@ model VideoRendition {
 
   @@unique([videoId, processingVersion, label])
   @@index([videoId, processingVersion])
+}
+
+/** Durable, versioned jobs to bridge the PostgreSQL -> Redis commit gap. */
+model VideoTranscodeOutbox {
+  id                String                  @id @default(uuid()) @db.Uuid
+  videoId           String                  @db.Uuid
+  processingVersion Int
+  jobId             String                  @unique @db.VarChar(160)
+  status            TranscodeDispatchStatus @default(PENDING)
+  attempts          Int                     @default(0)
+  nextAttemptAt     DateTime                @default(now()) @db.Timestamptz(3)
+  claimToken        String?                 @db.Uuid
+  leaseExpiresAt    DateTime?               @db.Timestamptz(3)
+  dispatchedAt      DateTime?               @db.Timestamptz(3)
+  lastErrorCode     String?                 @db.VarChar(64)
+  createdAt         DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime                @updatedAt @db.Timestamptz(3)
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Restrict)
+
+  @@unique([videoId, processingVersion])
+  @@index([status, nextAttemptAt])
+  @@index([status, leaseExpiresAt])
 }
 
 model Category {
