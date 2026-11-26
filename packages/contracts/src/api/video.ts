@@ -38,6 +38,8 @@ export const VideoResponseSchema = z.object({
   ownerId: IdSchema,
   title: z.string(),
   description: z.string().nullable(),
+  // Category IDs are public metadata; legacy payloads default to an empty list.
+  categoryIds: UniqueCategoryIdsSchema.default([]),
   status: VideoStatusSchema,
   visibility: VideoVisibilitySchema,
   durationSeconds: z.number().int().nonnegative().nullable(),

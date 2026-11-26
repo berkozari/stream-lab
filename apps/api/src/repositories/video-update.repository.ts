@@ -1,6 +1,7 @@
 import type { UpdateVideoRequest } from '@streamlab/contracts';
 import { prisma } from '../config/database.js';
 import { AppError } from '../utils/app-error.js';
+import { planVideoPublication } from '../lib/video-publication.js';
 import type { CreatedVideoRecord } from './video.repository.js';
 
 const videoSelect = {
@@ -8,6 +9,7 @@ const videoSelect = {
   ownerId: true,
   title: true,
   description: true,
+  categories: { select: { categoryId: true }, orderBy: { categoryId: 'asc' } },
   status: true,
   visibility: true,
   durationSeconds: true,
@@ -21,10 +23,10 @@ const conflict = () =>
   new AppError(
     409,
     'VIDEO_NOT_PUBLISHABLE',
-    'Video must be READY and previously published to become public or unlisted',
+    'Video must be READY before it can be public or unlisted',
   );
 
-/** Owner-scoped, atomic metadata and category replacement. Never changes publication time or processing state. */
+/** Owner-scoped, atomic metadata and category replacement. Sets the first publication time for READY videos; never changes processing state. */
 export async function updateOwnedVideoMetadata(
   videoId: string,
   ownerId: string,
@@ -40,8 +42,8 @@ export async function updateOwnedVideoMetadata(
       throw new AppError(409, 'VIDEO_DELETING', 'Video is being deleted');
     }
 
-    const exposing = input.visibility === 'PUBLIC' || input.visibility === 'UNLISTED';
-    if (exposing && (existing.status !== 'READY' || existing.publishedAt === null)) {
+    const publication = planVideoPublication(existing, input.visibility);
+    if (!publication.allowed) {
       throw conflict();
     }
 
@@ -61,14 +63,15 @@ export async function updateOwnedVideoMetadata(
         id: videoId,
         ownerId,
         deletedAt: null,
-        ...(exposing
-          ? { status: 'READY' as const, publishedAt: { not: null } }
+        ...(publication.exposing
+          ? { status: 'READY' as const }
           : { status: { not: 'DELETING' as const } }),
       },
       data: {
         ...(input.title !== undefined ? { title: input.title } : {}),
         ...(input.description !== undefined ? { description: input.description } : {}),
         ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
+        ...(publication.publishedAt ? { publishedAt: publication.publishedAt } : {}),
         updatedAt: new Date(),
       },
     });

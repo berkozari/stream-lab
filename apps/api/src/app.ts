@@ -7,7 +7,10 @@ import { allowedOrigins } from './config/env.js';
 import { createHealthRouter } from './routes/health.routes.js';
 import { createAuthRouter } from './routes/auth.routes.js';
 import { createUserRouter } from './routes/user.routes.js';
+import { createWatchProgressRouter } from './routes/watch-progress.routes.js';
 import { createVideoRouter } from './routes/video.routes.js';
+import { createCategoryRouter } from './routes/category.routes.js';
+import type { CategoryListHandler } from './services/category.service.js';
 import { createUploadRouter } from './routes/upload.routes.js';
 import type { CreateVideoHandler } from './services/video.service.js';
 import type { VideoListHandler, VideoDetailHandler } from './services/video-read.service.js';
@@ -41,6 +44,7 @@ type AppOptions = {
   authenticate?: RequestHandler;
   videoCreate?: CreateVideoHandler;
   videoList?: VideoListHandler;
+  categoryList?: CategoryListHandler;
   videoDetail?: VideoDetailHandler;
   videoPlayback?: PlaybackHandler;
   videoPlaybackMaster?: PlaybackManifestHandler;
@@ -86,6 +90,8 @@ export function createApp(options: AppOptions = {}) {
     }),
   );
   app.use('/api/v1/users', createUserRouter(options.authenticate));
+  app.use('/api/v1/users/me', createWatchProgressRouter(options.authenticate));
+  app.use('/api/v1/categories', createCategoryRouter(options.categoryList));
   app.use(
     '/api/v1/videos',
     createVideoRouter({

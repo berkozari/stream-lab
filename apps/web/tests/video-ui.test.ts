@@ -35,9 +35,9 @@ test('invalid video metadata rejects blank or too long title and oversized descr
   if (!description.success) assert.ok(description.errors.description);
 });
 
-test('visibility edits require READY and previously published video', () => {
+test('visibility edits require READY status, including first publication', () => {
   assert.equal(canChangeVideoVisibility(video), false);
-  assert.equal(canChangeVideoVisibility({ ...video, status: 'READY' }), false);
+  assert.equal(canChangeVideoVisibility({ ...video, status: 'READY' }), true);
   assert.equal(
     canChangeVideoVisibility({
       ...video,
@@ -57,7 +57,7 @@ test('visibility edits require READY and previously published video', () => {
 });
 
 test('error messages are safe for user and status labels cover enum variants', () => {
-  assert.match(videoRequestError({ response: { status: 409 } }), /yayınlanması/u);
+  assert.match(videoRequestError({ response: { status: 409 } }), /hazır/u);
   assert.match(videoRequestError({ response: { status: 401 } }), /Oturumunuzun/u);
   assert.match(videoRequestError({ response: { status: 422 } }), /geçersiz/u);
   assert.match(videoRequestError(new Error('SECRET_DATABASE_URL')), /İşlem tamamlanamadı/u);

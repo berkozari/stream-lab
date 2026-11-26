@@ -24,7 +24,7 @@ export function validateVideoMetadata(fields: VideoMetadataFields) {
 }
 
 export function canChangeVideoVisibility(video: Video): boolean {
-  return video.status === 'READY' && video.publishedAt !== null;
+  return video.status === 'READY';
 }
 
 export const VIDEO_STATUS_LABELS: Record<Video['status'], string> = {
@@ -57,7 +57,7 @@ export function videoRequestError(error: unknown): string {
     case 404:
       return 'Video bulunamadı veya bu işlem için yetkiniz yok.';
     case 409:
-      return 'Video bu durumdayken görünürlüğü değiştirilemez. Önce yayınlanması gerekir.';
+      return 'Video işlenip hazır hale gelmeden yayınlanamaz.';
     case 422:
       return 'Video bilgileri geçersiz. Başlık ve açıklamayı kontrol edin.';
     case 429:

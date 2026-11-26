@@ -13,6 +13,12 @@ const VideoDetailPage = lazy(() =>
   import('@/pages/videos/VideoDetailPage').then((module) => ({ default: module.VideoDetailPage })),
 );
 
+const WatchHistoryPage = lazy(() =>
+  import('@/pages/watch-history/WatchHistoryPage').then((module) => ({
+    default: module.WatchHistoryPage,
+  })),
+);
+
 export function AppRouter() {
   return (
     <Routes>
@@ -26,6 +32,24 @@ export function AppRouter() {
             </Suspense>
           }
         />
+        <Route element={<ProtectedRoute />}>
+          <Route
+            path="continue-watching"
+            element={
+              <Suspense fallback={<p role="status">İzleme kayıtları yükleniyor…</p>}>
+                <WatchHistoryPage mode="continue" />
+              </Suspense>
+            }
+          />
+          <Route
+            path="history"
+            element={
+              <Suspense fallback={<p role="status">İzleme kayıtları yükleniyor…</p>}>
+                <WatchHistoryPage mode="history" />
+              </Suspense>
+            }
+          />
+        </Route>
       </Route>
       <Route path="login" element={<LoginPage />} />
       <Route path="register" element={<RegisterPage />} />

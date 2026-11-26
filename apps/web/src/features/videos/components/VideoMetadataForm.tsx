@@ -1,5 +1,7 @@
 import { useId, useRef, useState, type FormEvent } from 'react';
 import { LoaderCircle } from 'lucide-react';
+import { useCategories } from '@/features/discovery/hooks/useCategories';
+import { MAX_VIDEO_CATEGORIES, toggleVideoCategory } from '../utils/video-category-selection';
 import type { Video } from '@streamlab/contracts';
 
 type VideoVisibility = Video['visibility'];
@@ -8,6 +10,7 @@ import { canChangeVideoVisibility, validateVideoMetadata } from '../utils/video-
 export type VideoMetadataInput = {
   title: string;
   description: string | null;
+  categoryIds: string[];
   visibility?: VideoVisibility;
 };
 
@@ -25,6 +28,8 @@ export function VideoMetadataForm({ video, busy, onCancel, onSave }: Props) {
   const [title, setTitle] = useState(video?.title ?? '');
   const [description, setDescription] = useState(video?.description ?? '');
   const [visibility, setVisibility] = useState<VideoVisibility>(video?.visibility ?? 'PRIVATE');
+  const [categoryIds, setCategoryIds] = useState<string[]>(video?.categoryIds ?? []);
+  const categories = useCategories();
   const [errors, setErrors] = useState<{ title?: string; description?: string }>({});
   const [submitError, setSubmitError] = useState('');
   const titleRef = useRef<HTMLInputElement>(null);
@@ -33,7 +38,8 @@ export function VideoMetadataForm({ video, busy, onCancel, onSave }: Props) {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    // Do not overwrite saved categories if category options could not be loaded.
+    if (busy || categories.isPending || categories.isError) return;
     setSubmitError('');
     const parsed = validateVideoMetadata({ title, description });
     if (!parsed.success) {
@@ -46,6 +52,7 @@ export function VideoMetadataForm({ video, busy, onCancel, onSave }: Props) {
       await onSave({
         title: parsed.data.title,
         description: parsed.data.description ?? null,
+        categoryIds,
         ...(allowVisibility ? { visibility } : {}),
       });
     } catch (error) {
@@ -122,6 +129,57 @@ export function VideoMetadataForm({ video, busy, onCancel, onSave }: Props) {
           </p>
         )}
       </div>
+      <fieldset className="space-y-2 rounded-lg border border-border p-3" disabled={busy}>
+        <legend className="px-1 text-sm font-medium">Kategoriler (isteğe bağlı)</legend>
+        <p className="text-xs text-muted-foreground">
+          {categoryIds.length}/{MAX_VIDEO_CATEGORIES} kategori seçildi.
+        </p>
+        {categories.isPending ? (
+          <p role="status" className="text-sm text-muted-foreground">
+            Kategoriler yükleniyor…
+          </p>
+        ) : categories.isError ? (
+          <div role="alert" className="space-y-2 text-sm text-destructive">
+            <p>Kategoriler alınamadı. Mevcut seçimleri korumak için kaydetme kapatıldı.</p>
+            <button
+              type="button"
+              className="rounded border border-border px-3 py-1 text-foreground"
+              onClick={() => void categories.refetch()}
+            >
+              Tekrar dene
+            </button>
+          </div>
+        ) : categories.data?.length ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {categories.data.map((category) => {
+              const selected = categoryIds.includes(category.id);
+              return (
+                <label
+                  key={category.id}
+                  className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm has-disabled:cursor-not-allowed has-disabled:opacity-50"
+                >
+                  <input
+                    type="checkbox"
+                    name="categoryIds"
+                    value={category.id}
+                    checked={selected}
+                    disabled={busy || (!selected && categoryIds.length >= MAX_VIDEO_CATEGORIES)}
+                    onChange={() =>
+                      setCategoryIds((current) => toggleVideoCategory(current, category.id))
+                    }
+                    className="size-4 accent-primary"
+                  />
+                  {category.name}
+                </label>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Henüz kategori yok. Geliştirme veritabanındaki kategori seed'ini kontrol et.
+          </p>
+        )}
+      </fieldset>
       {video && (
         <div>
           <label htmlFor={`${id}-visibility`} className="text-sm font-medium">
@@ -141,7 +199,7 @@ export function VideoMetadataForm({ video, busy, onCancel, onSave }: Props) {
           </select>
           {!allowVisibility && (
             <p className="mt-1 text-xs text-muted-foreground">
-              Yayınlanmamış videoların görünürlüğü bu ekrandan değiştirilemez.
+              Video READY durumunda olmadıkça görünürlük değiştirilemez.
             </p>
           )}
         </div>
@@ -157,7 +215,7 @@ export function VideoMetadataForm({ video, busy, onCancel, onSave }: Props) {
       <div className="flex flex-wrap gap-3">
         <button
           type="submit"
-          disabled={busy}
+          disabled={busy || categories.isPending || categories.isError}
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
         >
           {busy && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}

@@ -36,3 +36,30 @@ export function safePlaybackResumeTime(positionSeconds: number, duration: number
   if (!Number.isFinite(duration)) return positionSeconds;
   return Math.min(positionSeconds, Math.max(0, duration - 0.25));
 }
+
+/**
+ * A StrictMode replay may capture a 0-second snapshot before persisted resume.
+ * Until the initial seek succeeds, persisted progress takes precedence.
+ * Subsequent capability renewals always respect the actual playback snapshot.
+ */
+export function selectInitialResumeSnapshot(
+  snapshot: PlaybackResumeSnapshot | null,
+  initialPositionSeconds: number,
+  pendingInitialResume: boolean,
+): PlaybackResumeSnapshot | null {
+  if (
+    !pendingInitialResume ||
+    !Number.isFinite(initialPositionSeconds) ||
+    initialPositionSeconds <= 0
+  ) {
+    return snapshot;
+  }
+  return {
+    positionSeconds: initialPositionSeconds,
+    wasPlaying: snapshot?.wasPlaying ?? false,
+    muted: snapshot?.muted ?? false,
+    volume: snapshot?.volume ?? 1,
+    playbackRate: snapshot?.playbackRate ?? 1,
+    manualQualityLabel: snapshot?.manualQualityLabel ?? null,
+  };
+}

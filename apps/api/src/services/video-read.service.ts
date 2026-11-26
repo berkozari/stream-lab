@@ -34,6 +34,7 @@ export type VideoDetailReader = (id: string) => Promise<VideoReadRecord | null>;
 export function serializeVideo(record: VideoReadRecord): Video {
   return VideoResponseSchema.parse({
     ...record,
+    categoryIds: record.categories?.map(({ categoryId }) => categoryId) ?? [],
     publishedAt: record.publishedAt?.toISOString() ?? null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),

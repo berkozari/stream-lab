@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router';
 import { HlsPlayer } from '@/features/playback/components/HlsPlayer';
 import { usePlayback } from '@/features/playback/hooks/usePlayback';
+import { useWatchProgress } from '@/features/watch-history/hooks/useWatchProgress';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useVideoDetail } from '@/features/videos/hooks/useVideoQueries';
 
@@ -17,6 +18,7 @@ function ResolvedVideoDetail({ videoId }: { videoId?: string }) {
   const videoQuery = useVideoDetail(videoId);
   const ready = videoQuery.data?.status === 'READY';
   const playbackQuery = usePlayback(videoId, ready);
+  const watch = useWatchProgress(videoId, ready);
 
   return (
     <section className="mx-auto max-w-5xl space-y-6">
@@ -31,7 +33,9 @@ function ResolvedVideoDetail({ videoId }: { videoId?: string }) {
         <>
           <h1 className="text-2xl font-semibold tracking-tight">{videoQuery.data.title}</h1>
           {ready ? (
-            playbackQuery.isPending ? (
+            watch.isLoadingProgress ? (
+              <p role="status">Son izleme konumun yükleniyor…</p>
+            ) : playbackQuery.isPending ? (
               <p role="status">Oynatma bağlantısı hazırlanıyor…</p>
             ) : playbackQuery.isError ? (
               <div role="alert" className="space-y-3">
@@ -48,6 +52,8 @@ function ResolvedVideoDetail({ videoId }: { videoId?: string }) {
               <HlsPlayer
                 manifestUrl={playbackQuery.data.manifestUrl}
                 title={videoQuery.data.title}
+                initialPositionSeconds={watch.resumeSeconds}
+                onWatchProgress={watch.report}
                 onRefreshPlayback={async () => {
                   const previousUrl = playbackQuery.data.manifestUrl;
                   const refreshed = await playbackQuery.refetch();
@@ -59,6 +65,16 @@ function ResolvedVideoDetail({ videoId }: { videoId?: string }) {
           ) : (
             <p role="status" className="rounded-xl border border-border bg-card p-5">
               Bu video henüz oynatılmaya hazır değil. İşleme durumu: {videoQuery.data.status}.
+            </p>
+          )}
+          {watch.readFailed && (
+            <p role="status" className="text-sm text-amber-500">
+              Son izleme konumu alınamadı; video başlangıçtan oynatılacak.
+            </p>
+          )}
+          {watch.saveFailed && (
+            <p role="status" className="text-sm text-amber-500">
+              İzleme ilerlemesi kaydedilemedi. Bağlantı düzelince tekrar denenecek.
             </p>
           )}
           {videoQuery.data.description && (
