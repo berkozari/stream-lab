@@ -13,6 +13,7 @@ export const logger = pino({
       'passwordHash',
       'refreshToken',
       'token',
+      'playbackToken',
     ],
     censor: '[REDACTED]',
   },

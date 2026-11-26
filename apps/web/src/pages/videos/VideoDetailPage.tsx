@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router';
 import { HlsPlayer } from '@/features/playback/components/HlsPlayer';
 import { usePlayback } from '@/features/playback/hooks/usePlayback';
+import { usePlaybackAnalytics } from '@/features/playback/hooks/usePlaybackAnalytics';
 import { useWatchProgress } from '@/features/watch-history/hooks/useWatchProgress';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useVideoDetail } from '@/features/videos/hooks/useVideoQueries';
@@ -19,6 +20,7 @@ function ResolvedVideoDetail({ videoId }: { videoId?: string }) {
   const ready = videoQuery.data?.status === 'READY';
   const playbackQuery = usePlayback(videoId, ready);
   const watch = useWatchProgress(videoId, ready);
+  const analytics = usePlaybackAnalytics(videoId, playbackQuery.data?.manifestUrl);
 
   return (
     <section className="mx-auto max-w-5xl space-y-6">
@@ -54,6 +56,7 @@ function ResolvedVideoDetail({ videoId }: { videoId?: string }) {
                 title={videoQuery.data.title}
                 initialPositionSeconds={watch.resumeSeconds}
                 onWatchProgress={watch.report}
+                onPlaybackAnalytics={analytics.report}
                 onRefreshPlayback={async () => {
                   const previousUrl = playbackQuery.data.manifestUrl;
                   const refreshed = await playbackQuery.refetch();

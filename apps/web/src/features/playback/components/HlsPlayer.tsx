@@ -1,5 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type Hls from 'hls.js';
+import {
+  createPlaybackAnalyticsTracker,
+  type PlaybackAnalyticsSample,
+} from '../utils/playback-analytics-tracker';
 import { choosePlaybackStrategy, type PlaybackStrategy } from '../utils/playback-strategy';
 import {
   capturePlaybackSnapshot,
@@ -31,6 +35,7 @@ import {
 type HlsPlayerProps = {
   initialPositionSeconds?: number;
   onWatchProgress?: (sample: WatchProgressSample, force: boolean) => void;
+  onPlaybackAnalytics?: (sample: PlaybackAnalyticsSample) => void;
   manifestUrl: string;
   title: string;
   onRefreshPlayback?: () => Promise<boolean>;
@@ -45,6 +50,7 @@ export function HlsPlayer({
   onRefreshPlayback,
   initialPositionSeconds = 0,
   onWatchProgress,
+  onPlaybackAnalytics,
 }: HlsPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -275,6 +281,46 @@ export function HlsPlayer({
       document.removeEventListener('visibilitychange', onHidden);
     };
   }, [onWatchProgress]);
+
+  // Separate from WatchProgress; a playback session survives signed URL renewal.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !onPlaybackAnalytics) return;
+    const tracker = createPlaybackAnalyticsTracker(onPlaybackAnalytics);
+    const playing = () => tracker.playing(video);
+    const timeupdate = () => tracker.timeupdate(video);
+    const waiting = () => tracker.waiting(video);
+    const seeking = () => tracker.seeking(video);
+    const seeked = () => tracker.seeked(video);
+    const pause = () => tracker.pause(video);
+    const ended = () => tracker.ended(video);
+    const visibility = () => {
+      if (document.visibilityState === 'hidden') tracker.hidden(video);
+      else if (!video.paused && !video.seeking && !video.ended) tracker.playing(video);
+    };
+    video.addEventListener('playing', playing);
+    video.addEventListener('timeupdate', timeupdate);
+    video.addEventListener('waiting', waiting);
+    video.addEventListener('seeking', seeking);
+    video.addEventListener('seeked', seeked);
+    video.addEventListener('pause', pause);
+    video.addEventListener('ended', ended);
+    document.addEventListener('visibilitychange', visibility);
+    // 5s sampling qualifies genuine short views; steady-state reporting is ~15s.
+    const interval = window.setInterval(() => tracker.heartbeat(video), 5_000);
+    return () => {
+      tracker.close();
+      window.clearInterval(interval);
+      video.removeEventListener('playing', playing);
+      video.removeEventListener('timeupdate', timeupdate);
+      video.removeEventListener('waiting', waiting);
+      video.removeEventListener('seeking', seeking);
+      video.removeEventListener('seeked', seeked);
+      video.removeEventListener('pause', pause);
+      video.removeEventListener('ended', ended);
+      document.removeEventListener('visibilitychange', visibility);
+    };
+  }, [onPlaybackAnalytics]);
 
   const setQuality = (value: number) => {
     // Switch at the next fragment without recreating the player or losing playhead position.
