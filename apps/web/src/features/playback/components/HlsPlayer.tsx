@@ -4,6 +4,7 @@ import { choosePlaybackStrategy, type PlaybackStrategy } from '../utils/playback
 import {
   capturePlaybackSnapshot,
   safePlaybackResumeTime,
+  selectInitialResumeSnapshot,
   type PlaybackResumeSnapshot,
 } from '../utils/playback-resume';
 import {
@@ -22,7 +23,14 @@ import {
   type PlaybackPhase,
 } from '../utils/playback-status';
 
+import {
+  mediaProgressSample,
+  type WatchProgressSample,
+} from '@/features/watch-history/utils/progress-reporting';
+
 type HlsPlayerProps = {
+  initialPositionSeconds?: number;
+  onWatchProgress?: (sample: WatchProgressSample, force: boolean) => void;
   manifestUrl: string;
   title: string;
   onRefreshPlayback?: () => Promise<boolean>;
@@ -31,11 +39,19 @@ type HlsPlayerProps = {
 /** Native media controls cover play/pause, seek, volume and fullscreen.
  * hls.js adds ABR, while this component handles playback lifecycle and errors.
  */
-export function HlsPlayer({ manifestUrl, title, onRefreshPlayback }: HlsPlayerProps) {
+export function HlsPlayer({
+  manifestUrl,
+  title,
+  onRefreshPlayback,
+  initialPositionSeconds = 0,
+  onWatchProgress,
+}: HlsPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   // Keep the playhead and manual quality when a short-lived manifest URL is renewed.
   const savedPlaybackRef = useRef<PlaybackResumeSnapshot | null>(null);
+  // StrictMode can replay the effect before metadata arrives.
+  const initialResumePendingRef = useRef(true);
   const qualityOptionsRef = useRef<QualityOption[]>([]);
   const selectedQualityRef = useRef(-1);
   const qualitySelectId = useId();
@@ -55,7 +71,11 @@ export function HlsPlayer({ manifestUrl, title, onRefreshPlayback }: HlsPlayerPr
     let cancelled = false;
     let reportedFailure = false;
     let destroyHls: (() => void) | undefined;
-    const resume = savedPlaybackRef.current;
+    const resume = selectInitialResumeSnapshot(
+      savedPlaybackRef.current,
+      initialPositionSeconds,
+      initialResumePendingRef.current,
+    );
     savedPlaybackRef.current = null;
     qualityOptionsRef.current = [];
     selectedQualityRef.current = -1;
@@ -96,8 +116,12 @@ export function HlsPlayer({ manifestUrl, title, onRefreshPlayback }: HlsPlayerPr
         video.muted = resume.muted;
         video.volume = resume.volume;
         video.playbackRate = resume.playbackRate;
-        video.currentTime = safePlaybackResumeTime(resume.positionSeconds, video.duration);
+        const targetTime = safePlaybackResumeTime(resume.positionSeconds, video.duration);
+        // If duration is temporarily zero, retry on canplay instead of clearing resume.
+        if (resume.positionSeconds > 0 && targetTime <= 0) return;
+        video.currentTime = targetTime;
         restored = true;
+        initialResumePendingRef.current = false;
         if (resume.wasPlaying) {
           // Browser autoplay policy may reject this; native controls remain available.
           void video.play().catch(() => undefined);
@@ -198,7 +222,59 @@ export function HlsPlayer({ manifestUrl, title, onRefreshPlayback }: HlsPlayerPr
       video.removeAttribute('src');
       video.load();
     };
-  }, [manifestUrl, attempt]);
+  }, [manifestUrl, attempt, initialPositionSeconds]);
+
+  // Progress tracking is independent from manifest renewal.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !onWatchProgress) return;
+    let active = false;
+    let lastValidSample: WatchProgressSample | null = null;
+    const report = (force: boolean, completed = false) => {
+      if (!active) return;
+      // Do not send an artificial 0s after hls.js detaches its media source.
+      const sample = mediaProgressSample(video, completed);
+      if (!sample) return;
+      lastValidSample = sample;
+      onWatchProgress(sample, force);
+    };
+    const markActive = () => {
+      active = true;
+    };
+    const onSeeked = () => {
+      active = true;
+      report(true);
+    };
+    const onEnd = () => {
+      active = true;
+      report(true, true);
+    };
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden') report(true);
+    };
+    video.addEventListener('playing', markActive);
+    video.addEventListener('timeupdate', onTimeUpdate);
+    video.addEventListener('seeked', onSeeked);
+    video.addEventListener('pause', onPause);
+    video.addEventListener('ended', onEnd);
+    document.addEventListener('visibilitychange', onHidden);
+    function onTimeUpdate() {
+      report(false);
+    }
+    function onPause() {
+      report(true);
+    }
+    return () => {
+      // This cleanup may run after the player effect resets video.currentTime.
+      if (lastValidSample) onWatchProgress(lastValidSample, true);
+      video.removeEventListener('playing', markActive);
+      video.removeEventListener('timeupdate', onTimeUpdate);
+      video.removeEventListener('seeked', onSeeked);
+      video.removeEventListener('pause', onPause);
+      video.removeEventListener('ended', onEnd);
+      document.removeEventListener('visibilitychange', onHidden);
+    };
+  }, [onWatchProgress]);
 
   const setQuality = (value: number) => {
     // Switch at the next fragment without recreating the player or losing playhead position.

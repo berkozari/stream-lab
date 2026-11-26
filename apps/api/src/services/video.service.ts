@@ -1,5 +1,6 @@
-import { VideoResponseSchema, type CreateVideoRequest, type Video } from '@streamlab/contracts';
+import type { CreateVideoRequest, Video } from '@streamlab/contracts';
 import { insertVideoDraft, type CreatedVideoRecord } from '../repositories/video.repository.js';
+import { serializeVideo } from './video-read.service.js';
 
 export type VideoDraftWriter = (
   ownerId: string,
@@ -10,13 +11,7 @@ export type CreateVideoHandler = (ownerId: string, input: CreateVideoRequest) =>
 /** The shared response schema is the final serialization/field allowlist. */
 export function createVideoService(write: VideoDraftWriter = insertVideoDraft): CreateVideoHandler {
   return async (ownerId, input) => {
-    const record = await write(ownerId, input);
-    return VideoResponseSchema.parse({
-      ...record,
-      publishedAt: record.publishedAt?.toISOString() ?? null,
-      createdAt: record.createdAt.toISOString(),
-      updatedAt: record.updatedAt.toISOString(),
-    });
+    return serializeVideo(await write(ownerId, input));
   };
 }
 

@@ -7,6 +7,7 @@ const videoResponseSelect = {
   ownerId: true,
   title: true,
   description: true,
+  categories: { select: { categoryId: true }, orderBy: { categoryId: 'asc' } },
   status: true,
   visibility: true,
   durationSeconds: true,

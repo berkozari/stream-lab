@@ -57,7 +57,7 @@ export function CreatorVideoManagement() {
         await create.mutateAsync({
           title: input.title,
           description: input.description,
-          categoryIds: [],
+          categoryIds: input.categoryIds,
         });
         setNotice('Video taslağı oluşturuldu. Listeden “Dosya yükle” ile devam edebilirsin.');
       }
