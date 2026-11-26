@@ -1,7 +1,12 @@
 import type { MultipartUploadService } from '../services/upload-multipart.service.js';
 import { multipartCreateController } from '../controllers/upload-multipart.controller.js';
 import { Router, type RequestHandler } from 'express';
-import { CreateVideoRequestSchema, UpdateVideoRequestSchema } from '@streamlab/contracts';
+import { rateLimit } from 'express-rate-limit';
+import {
+  CreateVideoRequestSchema,
+  UpdateVideoRequestSchema,
+  PlaybackAnalyticsEventSchema,
+} from '@streamlab/contracts';
 import {
   CreateUploadRequestSchema,
   CreateMultipartUploadRequestSchema,
@@ -29,6 +34,8 @@ import type {
   PlaybackSegmentHandler,
 } from '../services/playback-hls.service.js';
 import { validateBody } from '../middlewares/validate.middleware.js';
+import { createPlaybackAnalyticsController } from '../controllers/playback-analytics.controller.js';
+import type { AnalyticsHandler } from '../services/playback-analytics.service.js';
 import type { CreateVideoHandler } from '../services/video.service.js';
 import type { UpdateVideoHandler } from '../services/video-update.service.js';
 import type { DeleteVideoHandler } from '../services/video-delete.service.js';
@@ -45,6 +52,7 @@ export type VideoRouterOptions = {
   delete?: DeleteVideoHandler;
   uploadCreate?: CreateUploadSessionHandler;
   playback?: PlaybackHandler;
+  playbackAnalytics?: AnalyticsHandler;
   playbackMaster?: PlaybackManifestHandler;
   playbackVariant?: PlaybackVariantHandler;
   playbackSegment?: PlaybackSegmentHandler;
@@ -91,6 +99,19 @@ export function createVideoRouter(options: VideoRouterOptions = {}): Router {
     createPlaybackSegmentController(options.playbackSegment),
   );
   // Access JWT + active PostgreSQL session; this route does not use cookie authentication.
+  // Capability token in the validated body; never use query strings for analytics writes.
+  // Per-process IP limiter is a basic traffic guard, not bot/fraud protection.
+  router.post(
+    '/:videoId/analytics/events',
+    rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: 'draft-8', legacyHeaders: false }),
+    (_req, res, next) => {
+      res.set('Cache-Control', 'private, no-store');
+      res.set('Referrer-Policy', 'no-referrer');
+      next();
+    },
+    validateBody(PlaybackAnalyticsEventSchema),
+    createPlaybackAnalyticsController(options.playbackAnalytics),
+  );
   router.post(
     '/',
     authenticate,

@@ -77,6 +77,7 @@ model User {
   sessions      AuthSession[]
   videos        Video[]
   watchProgress WatchProgress[]
+  playbackAnalyticsSessions PlaybackAnalyticsSession[]
 }
 
 model AuthSession {
@@ -116,6 +117,7 @@ model Video {
   transcodeDispatches VideoTranscodeOutbox[]
   categories    VideoCategory[]
   watchProgress WatchProgress[]
+  playbackAnalyticsSessions PlaybackAnalyticsSession[]
 
   @@index([ownerId, createdAt])
   @@index([status, visibility, deletedAt, publishedAt])
@@ -240,4 +242,28 @@ model ConsumedRefreshToken {
   session AuthSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
 
   @@index([sessionId])
+}
+
+
+/** Aggregated, qualified playback sessions, separate from user watch progress. */
+model PlaybackAnalyticsSession {
+  id                  String    @id @db.Uuid
+  videoId             String    @db.Uuid
+  viewerId            String?   @db.Uuid
+  processingVersion   Int
+  lastSequence        Int       @default(-1)
+  lastPositionSeconds Int       @default(0)
+  watchedSeconds      Int       @default(0)
+  qualifiedAt         DateTime? @db.Timestamptz(3)
+  completedAt         DateTime? @db.Timestamptz(3)
+  startedAt           DateTime  @default(now()) @db.Timestamptz(3)
+  lastEventAt         DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(3)
+
+  video  Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  viewer User? @relation(fields: [viewerId], references: [id], onDelete: SetNull)
+
+  @@index([videoId, qualifiedAt])
+  @@index([videoId, startedAt])
+  @@index([viewerId, startedAt])
 }

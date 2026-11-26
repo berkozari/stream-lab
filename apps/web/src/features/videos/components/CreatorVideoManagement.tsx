@@ -25,7 +25,9 @@ import {
 const actionClass =
   'inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60';
 
-export function CreatorVideoManagement() {
+export function CreatorVideoManagement({
+  onViewAnalytics,
+}: { onViewAnalytics?: (videoId: string) => void } = {}) {
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState<string | undefined>();
   const [creating, setCreating] = useState(false);
@@ -223,6 +225,16 @@ export function CreatorVideoManagement() {
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
+                  {onViewAnalytics && (
+                    <button
+                      type="button"
+                      className={actionClass}
+                      onClick={() => onViewAnalytics(video.id)}
+                      aria-label={`${video.title} videosunun analitiğini görüntüle`}
+                    >
+                      Analitik
+                    </button>
+                  )}
                   {(video.status === 'DRAFT' || video.status === 'UPLOADING') && (
                     <button
                       type="button"

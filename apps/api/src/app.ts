@@ -10,6 +10,10 @@ import { createUserRouter } from './routes/user.routes.js';
 import { createWatchProgressRouter } from './routes/watch-progress.routes.js';
 import { createVideoRouter } from './routes/video.routes.js';
 import { createCategoryRouter } from './routes/category.routes.js';
+import { createCreatorRouter } from './routes/creator.routes.js';
+import type { CreatorSummaryHandler } from './services/creator-summary.service.js';
+import type { CreatorAnalyticsHandler } from './services/creator-analytics.service.js';
+import type { AnalyticsHandler } from './services/playback-analytics.service.js';
 import type { CategoryListHandler } from './services/category.service.js';
 import { createUploadRouter } from './routes/upload.routes.js';
 import type { CreateVideoHandler } from './services/video.service.js';
@@ -45,8 +49,11 @@ type AppOptions = {
   videoCreate?: CreateVideoHandler;
   videoList?: VideoListHandler;
   categoryList?: CategoryListHandler;
+  creatorSummary?: CreatorSummaryHandler;
+  creatorAnalytics?: CreatorAnalyticsHandler;
   videoDetail?: VideoDetailHandler;
   videoPlayback?: PlaybackHandler;
+  playbackAnalytics?: AnalyticsHandler;
   videoPlaybackMaster?: PlaybackManifestHandler;
   videoPlaybackVariant?: PlaybackVariantHandler;
   videoPlaybackSegment?: PlaybackSegmentHandler;
@@ -93,6 +100,10 @@ export function createApp(options: AppOptions = {}) {
   app.use('/api/v1/users/me', createWatchProgressRouter(options.authenticate));
   app.use('/api/v1/categories', createCategoryRouter(options.categoryList));
   app.use(
+    '/api/v1/creator',
+    createCreatorRouter(options.authenticate, options.creatorSummary, options.creatorAnalytics),
+  );
+  app.use(
     '/api/v1/videos',
     createVideoRouter({
       authenticate: options.authenticate,
@@ -100,6 +111,7 @@ export function createApp(options: AppOptions = {}) {
       list: options.videoList,
       detail: options.videoDetail,
       playback: options.videoPlayback,
+      playbackAnalytics: options.playbackAnalytics,
       playbackMaster: options.videoPlaybackMaster,
       playbackVariant: options.videoPlaybackVariant,
       playbackSegment: options.videoPlaybackSegment,
