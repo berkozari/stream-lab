@@ -8,6 +8,7 @@ import { probeLocalVideo, type VideoProbe } from '../ffprobe/probe.js';
 import { encodeHlsVideo, type HlsEncodingResult } from './ffmpeg-hls.js';
 import { uploadHlsOutput, type UploadedHls } from '../storage/hls-objects.js';
 import type { PublishReadyInput } from '../../repositories/transcoding-publish.repository.js';
+import { assertSourceScratchCapacity, assertTranscodingResources } from './resource-budget.js';
 import type { PublishHls } from '../../processors/video-transcode.processor.js';
 
 export type PublishHlsDependencies = {
@@ -27,6 +28,9 @@ export type PublishHlsDependencies = {
     signal: AbortSignal,
   ) => Promise<UploadedHls>;
   commit: (input: PublishReadyInput) => Promise<void>;
+  /** Optional to preserve injected test/fixture contracts. */
+  admitSource?: (sourceBytes: bigint, signal: AbortSignal) => Promise<void>;
+  admitEncode?: (probe: VideoProbe, signal: AbortSignal) => Promise<void>;
 };
 
 export function createPublishHls(
@@ -39,6 +43,8 @@ export function createPublishHls(
     probe: (path, signal) => probeLocalVideo(path, process.env.FFPROBE_PATH ?? 'ffprobe', signal),
     encode: encodeHlsVideo,
     upload: uploadHlsOutput,
+    admitSource: assertSourceScratchCapacity,
+    admitEncode: assertTranscodingResources,
     commit: async (input) =>
       (await import('../../repositories/transcoding-publish.repository.js')).commitTranscodingReady(
         input,
@@ -48,12 +54,15 @@ export function createPublishHls(
   return async ({ job, claimToken, signal, beforeReadyCommit }) => {
     if (signal.aborted) throw new Error('TRANSCODING_CANCELLED');
     const source = await deps.resolve(job, claimToken);
+    await deps.admitSource?.(source.sizeBytes, signal);
+    if (signal.aborted) throw new Error('TRANSCODING_CANCELLED');
     const local = await deps.download(source, { signal });
     let outputDir: string | undefined;
     let uploaded: UploadedHls | undefined;
     let committed = false;
     try {
       const probe = await deps.probe(local.filePath, signal);
+      await deps.admitEncode?.(probe, signal);
       if (signal.aborted) throw new Error('TRANSCODING_CANCELLED');
       outputDir = await mkdtemp(join(tmpdir(), 'streamlab-hls-'));
       const encoded = await deps.encode(local.filePath, outputDir, probe, signal);

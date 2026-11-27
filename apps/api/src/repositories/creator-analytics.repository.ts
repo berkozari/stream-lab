@@ -2,6 +2,7 @@
 import { prisma } from '../config/database.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import type { CompletedVideoRow, QualifiedVideoRow } from '../lib/creator-analytics-metrics.js';
+import { mergeCompletedArchive, mergeQualifiedArchive } from '../lib/analytics-retention.js';
 
 /** All queries are owner-scoped and exclude soft-deleted videos. */
 function analyticsWhere(
@@ -26,7 +27,12 @@ export async function readQualifiedVideoGroups(
     _sum: { watchedSeconds: true },
   });
 
-  return groups;
+  if (rangeStart) return groups;
+  const archived = await prisma.videoAnalyticsArchive.findMany({
+    where: { video: { is: { ownerId, deletedAt: null } } },
+    select: { videoId: true, qualifiedViews: true, watchSeconds: true, completedViews: true },
+  });
+  return mergeQualifiedArchive(groups, archived);
 }
 
 export async function readCompletedVideoGroups(
@@ -42,7 +48,12 @@ export async function readCompletedVideoGroups(
     _count: { _all: true },
   });
 
-  return groups;
+  if (rangeStart) return groups;
+  const archived = await prisma.videoAnalyticsArchive.findMany({
+    where: { video: { is: { ownerId, deletedAt: null } } },
+    select: { videoId: true, qualifiedViews: true, watchSeconds: true, completedViews: true },
+  });
+  return mergeCompletedArchive(groups, archived);
 }
 
 /** Fetch only the top candidate titles, never raw viewer-session rows. */

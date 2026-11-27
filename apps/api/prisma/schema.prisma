@@ -115,6 +115,7 @@ model Video {
   mediaAssets   MediaAsset[]
   renditions    VideoRendition[]
   transcodeDispatches VideoTranscodeOutbox[]
+  analyticsArchive VideoAnalyticsArchive?
   categories    VideoCategory[]
   watchProgress WatchProgress[]
   playbackAnalyticsSessions PlaybackAnalyticsSession[]
@@ -266,4 +267,17 @@ model PlaybackAnalyticsSession {
   @@index([videoId, qualifiedAt])
   @@index([videoId, startedAt])
   @@index([viewerId, startedAt])
+  @@index([lastEventAt, id])
+}
+
+
+/** Compact, anonymous all-time totals preserved when old playback sessions expire. */
+model VideoAnalyticsArchive {
+  videoId        String   @id @db.Uuid
+  qualifiedViews BigInt   @default(0)
+  watchSeconds   BigInt   @default(0)
+  completedViews BigInt   @default(0)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
 }

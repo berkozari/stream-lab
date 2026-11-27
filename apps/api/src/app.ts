@@ -3,7 +3,7 @@ import type { RefreshHandler } from './services/refresh.service.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { allowedOrigins } from './config/env.js';
+import { allowedOrigins, trustedProxyCidrs } from './config/env.js';
 import { createHealthRouter } from './routes/health.routes.js';
 import { createAuthRouter } from './routes/auth.routes.js';
 import { createUserRouter } from './routes/user.routes.js';
@@ -70,9 +70,12 @@ type AppOptions = {
 export function createApp(options: AppOptions = {}) {
   const app = express();
   app.disable('x-powered-by');
+  // Trust X-Forwarded-For only when the immediate sender is a configured proxy.
+  app.set('trust proxy', trustedProxyCidrs.length ? trustedProxyCidrs : false);
   app.use(helmet());
-  app.use(requestLoggerMiddleware);
+  // Assign our server-generated correlation ID before pino-http observes the request.
   app.use(requestIdMiddleware);
+  app.use(requestLoggerMiddleware);
   app.use(
     cors({
       credentials: true,

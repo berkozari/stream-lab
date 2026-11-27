@@ -3,7 +3,7 @@ import { createLogoutController } from '../controllers/session.controller.js';
 import type { LogoutHandler } from '../services/session.service.js';
 import type { RefreshHandler } from '../services/refresh.service.js';
 import { Router } from 'express';
-import { rateLimit } from 'express-rate-limit';
+import { createRequestRateLimiter } from '../lib/request-rate-limit.js';
 import { RegisterRequestSchema, LoginRequestSchema } from '../schemas/auth.schema.js';
 import {
   createRegisterController,
@@ -24,19 +24,11 @@ export function createAuthRouter(
 ): Router {
   const router = Router();
   router.get('/csrf', getCsrfController);
-  // Local starter: process-local limiter. Redis-backed limiter required before multi-instance deployment.
-  const registerLimit = rateLimit({
+  const registerLimit = createRequestRateLimiter({
+    scope: 'auth-register',
     windowMs: 15 * 60 * 1000,
     limit: 8,
-    standardHeaders: 'draft-8',
-    legacyHeaders: false,
-    handler: (req, res) => {
-      res.status(429).json({
-        success: false,
-        error: { code: 'RATE_LIMITED', message: 'Too many registration attempts' },
-        requestId: req.requestId ?? null,
-      });
-    },
+    message: 'Too many registration attempts',
   });
   router.post(
     '/register',
@@ -45,19 +37,11 @@ export function createAuthRouter(
     validateBody(RegisterRequestSchema),
     createRegisterController(options.register),
   );
-  // Development-only process-local login rate limit; migrate to Redis before multi-instance deployment.
-  const loginLimit = rateLimit({
+  const loginLimit = createRequestRateLimiter({
+    scope: 'auth-login',
     windowMs: 15 * 60 * 1000,
     limit: 10,
-    standardHeaders: 'draft-8',
-    legacyHeaders: false,
-    handler: (req, res) => {
-      res.status(429).json({
-        success: false,
-        error: { code: 'RATE_LIMITED', message: 'Too many login attempts' },
-        requestId: req.requestId ?? null,
-      });
-    },
+    message: 'Too many login attempts',
   });
   router.post(
     '/login',
@@ -66,12 +50,10 @@ export function createAuthRouter(
     validateBody(LoginRequestSchema),
     createLoginController(options.login),
   );
-  // Process-local limiter for development; use Redis storage before scaling out.
-  const refreshLimit = rateLimit({
+  const refreshLimit = createRequestRateLimiter({
+    scope: 'auth-refresh',
     windowMs: 15 * 60 * 1000,
     limit: 60,
-    standardHeaders: 'draft-8',
-    legacyHeaders: false,
   });
   router.post(
     '/refresh',

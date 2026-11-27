@@ -202,6 +202,9 @@ importers:
       ioredis:
         specifier: ^6.1.0
         version: 6.1.0
+      pino:
+        specifier: ^10.4.0
+        version: 10.4.0
     devDependencies:
       '@types/node':
         specifier: ^24.0.0

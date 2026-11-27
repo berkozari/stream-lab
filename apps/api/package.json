@@ -15,6 +15,9 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:smoke": "tsx scripts/db-smoke.ts",
+    "analytics:retention": "tsx scripts/analytics-retention.ts",
+    "test:analytics:retention": "node --import tsx --test tests/unit/analytics-retention.test.ts",
+    "smoke:analytics:retention": "tsx scripts/analytics-retention-integration-smoke.ts",
     "db:typecheck": "tsc --noEmit -p tsconfig.db.json",
     "test:foundation": "node --import tsx --test tests/integration/backend-foundation.test.ts tests/unit/validate.middleware.test.ts",
     "test:api:foundation": "pnpm --filter @streamlab/api test:foundation",
@@ -58,7 +61,9 @@
     "smoke:transcoding:e2e": "tsx scripts/transcoding-e2e-smoke.ts",
     "test:transcoding:recovery": "node --import tsx --test tests/unit/video-transcode-recovery.test.ts tests/unit/video-transcode-recovery-loop.test.ts",
     "test:transcoding:recovery:db": "node --import tsx --test tests/integration/video-transcode-recovery.db.test.ts",
-    "test:transcoding:failure:live": "node --import tsx --test tests/integration/video-transcode-failure-recovery.live.test.ts"
+    "test:transcoding:failure:live": "node --import tsx --test tests/integration/video-transcode-failure-recovery.live.test.ts",
+    "test:hardening": "node --import tsx --test tests/unit/redis-rate-limit-store.test.ts tests/integration/redis-rate-limit.http.test.ts",
+    "test:observability": "node --import tsx --test tests/integration/observability.http.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",

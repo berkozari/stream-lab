@@ -4,6 +4,9 @@ import { stdSerializers } from 'pino';
 
 export const requestLoggerMiddleware = pinoHttp({
   logger,
+  // Match pino's req.id to the server-issued X-Request-Id, never a caller header.
+  genReqId: (req) =>
+    'requestId' in req && typeof req.requestId === 'string' ? req.requestId : 'missing-request-id',
   // Playback URLs contain bearer-capability tokens. Never put query strings in HTTP logs.
   serializers: {
     req: (request) => {

@@ -4,11 +4,11 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import type { VideoProbe } from '../ffprobe/probe.js';
 import { planHlsProfiles, renderHlsMaster, type HlsProfile } from './hls-profiles.js';
+import { readTranscodingBudget } from './resource-budget.js';
 
 const execFileAsync = promisify(execFile);
 const SEGMENT_NAME = /^segment_[0-9]{5,8}\.ts$/u;
 const HLS_MAX_BUFFER = 64 * 1024;
-const HLS_MAX_DURATION_MS = 2 * 60 * 60_000;
 
 export type HlsOutputFile = {
   relativePath: string;
@@ -91,6 +91,7 @@ export async function encodeHlsVideo(
   options: { runner?: HlsRunner; binary?: string } = {},
 ): Promise<HlsEncodingResult> {
   const profiles = planHlsProfiles(probe);
+  const budget = readTranscodingBudget();
   const runner = options.runner ?? runFfmpeg;
   const binary = options.binary ?? process.env.FFMPEG_PATH ?? 'ffmpeg';
   const files: HlsOutputFile[] = [];
@@ -109,6 +110,8 @@ export async function encodeHlsVideo(
       '-map',
       '0:v:0',
       ...(probe.hasAudio ? ['-map', '0:a:0'] : []),
+      '-filter_threads',
+      String(budget.ffmpegThreads),
       '-vf',
       `scale=${profile.width}:${profile.height}:flags=lanczos,setsar=1`,
       '-c:v',
@@ -117,6 +120,8 @@ export async function encodeHlsVideo(
       'veryfast',
       '-pix_fmt',
       'yuv420p',
+      '-threads',
+      String(budget.ffmpegThreads),
       '-b:v',
       String(profile.videoBitrate),
       '-maxrate',
@@ -146,7 +151,7 @@ export async function encodeHlsVideo(
     ];
     try {
       await runner(binary, args, {
-        timeout: HLS_MAX_DURATION_MS,
+        timeout: budget.ffmpegProfileTimeoutMs,
         maxBuffer: HLS_MAX_BUFFER,
         signal,
         windowsHide: true,

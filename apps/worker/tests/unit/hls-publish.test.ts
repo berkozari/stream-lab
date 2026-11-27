@@ -111,3 +111,39 @@ test('failed fenced DB commit removes attempt-scoped uploaded objects', async ()
   assert.ok(events.indexOf('clean-remote') > events.indexOf('commit'));
   assert.ok(events.includes('clean-local'));
 });
+
+test('source preflight rejects before download and does not start transcoding', async () => {
+  const { events, deps } = fixture();
+  deps.admitSource = async () => {
+    events.push('admit-source');
+    throw new Error('TRANSCODING_SCRATCH_INSUFFICIENT');
+  };
+  await assert.rejects(
+    createPublishHls(deps)({
+      job,
+      claimToken,
+      signal: new AbortController().signal,
+      beforeReadyCommit: async () => events.push('quiesce'),
+    }),
+    /TRANSCODING_SCRATCH_INSUFFICIENT/u,
+  );
+  assert.deepEqual(events, ['resolve', 'admit-source']);
+});
+
+test('post-probe admission rejection cleans local source without writing HLS', async () => {
+  const { events, deps } = fixture();
+  deps.admitEncode = async () => {
+    events.push('admit-encode');
+    throw new Error('TRANSCODING_MEDIA_BUDGET_EXCEEDED');
+  };
+  await assert.rejects(
+    createPublishHls(deps)({
+      job,
+      claimToken,
+      signal: new AbortController().signal,
+      beforeReadyCommit: async () => events.push('quiesce'),
+    }),
+    /TRANSCODING_MEDIA_BUDGET_EXCEEDED/u,
+  );
+  assert.deepEqual(events, ['resolve', 'download', 'probe', 'admit-encode', 'clean-local']);
+});
