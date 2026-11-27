@@ -1,0 +1,21 @@
+# Keep credentials, local databases, generated artifacts and host dependencies out of image builds.
+.git
+.gitignore
+**/node_modules
+**/dist
+**/coverage
+**/.vite
+**/generated
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+.env
+.env.*
+!.env.example
+!**/.env.example
+.pnpm-store
+playwright-report
+test-results
+*.log
+*.zip
+.DS_Store

@@ -1,7 +1,7 @@
 import type { MultipartUploadService } from '../services/upload-multipart.service.js';
 import { multipartCreateController } from '../controllers/upload-multipart.controller.js';
 import { Router, type RequestHandler } from 'express';
-import { rateLimit } from 'express-rate-limit';
+import { createRequestRateLimiter } from '../lib/request-rate-limit.js';
 import {
   CreateVideoRequestSchema,
   UpdateVideoRequestSchema,
@@ -100,10 +100,10 @@ export function createVideoRouter(options: VideoRouterOptions = {}): Router {
   );
   // Access JWT + active PostgreSQL session; this route does not use cookie authentication.
   // Capability token in the validated body; never use query strings for analytics writes.
-  // Per-process IP limiter is a basic traffic guard, not bot/fraud protection.
+  // Shared production IP limiter is a traffic guard, not bot/fraud protection.
   router.post(
     '/:videoId/analytics/events',
-    rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: 'draft-8', legacyHeaders: false }),
+    createRequestRateLimiter({ scope: 'playback-analytics', windowMs: 60_000, limit: 120 }),
     (_req, res, next) => {
       res.set('Cache-Control', 'private, no-store');
       res.set('Referrer-Policy', 'no-referrer');

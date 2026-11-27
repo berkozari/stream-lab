@@ -111,7 +111,15 @@
     "test:web:upload": "pnpm --filter @streamlab/contracts build && pnpm --filter @streamlab/web test:upload:ui",
     "verify:upload:e2e": "node scripts/verify-stream-004-9.mjs",
     "test:upload:e2e": "pnpm exec playwright test apps/web/tests/e2e/upload-security.spec.ts",
-    "test:upload:e2e:large": "STREAMLAB_E2E_LARGE_UPLOAD=1 pnpm test:upload:e2e"
+    "test:upload:e2e:large": "STREAMLAB_E2E_LARGE_UPLOAD=1 pnpm test:upload:e2e",
+    "verify:stream:009-4": "node scripts/verify-stream-009-4.mjs",
+    "test:stream:009-4": "pnpm --filter @streamlab/api test:analytics:retention",
+    "test:stream:009-3": "pnpm --filter @streamlab/worker test:hardening",
+    "verify:stream:009-3": "node scripts/verify-stream-009-3.mjs",
+    "test:stream:009-2": "pnpm --filter @streamlab/api test:hardening",
+    "verify:stream:009-2": "node scripts/verify-stream-009-2.mjs",
+    "verify:stream:009-5": "node scripts/verify-stream-009-5.mjs",
+    "test:stream:009-5": "pnpm --filter @streamlab/worker test:observability"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

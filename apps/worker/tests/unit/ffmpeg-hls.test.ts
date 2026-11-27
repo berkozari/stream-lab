@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { encodeHlsVideo, type HlsRunner } from '../../src/services/transcoding/ffmpeg-hls.js';
+import { readTranscodingBudget } from '../../src/services/transcoding/resource-budget.js';
 
 const probe = { durationSeconds: 2, width: 320, height: 240, codec: 'mpeg4', hasAudio: false };
 
@@ -14,6 +15,15 @@ test('creates validated master/variant assets and maps video-only input', async 
       assert.ok(!args.includes('0:a:0'));
       assert.ok(args.includes('-an'));
       assert.ok(options.signal);
+      assert.equal(options.timeout, readTranscodingBudget().ffmpegProfileTimeoutMs);
+      assert.equal(
+        args[args.indexOf('-threads') + 1],
+        String(readTranscodingBudget().ffmpegThreads),
+      );
+      assert.equal(
+        args[args.indexOf('-filter_threads') + 1],
+        String(readTranscodingBudget().ffmpegThreads),
+      );
       const variantDir = join(dir, '240p');
       await writeFile(join(variantDir, 'segment_00000.ts'), 'video');
       await writeFile(

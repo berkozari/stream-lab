@@ -7,6 +7,7 @@ import {
   type WorkerStorageConfig,
 } from '../../config/storage.js';
 import type { HlsOutputFile } from '../transcoding/ffmpeg-hls.js';
+import { MAX_HLS_OBJECTS_PER_ATTEMPT } from '../transcoding/resource-budget.js';
 
 export type UploadedHls = {
   prefix: string;
@@ -45,6 +46,7 @@ export async function uploadHlsOutput(
   if (
     master.length !== 1 ||
     files.length < 3 ||
+    files.length > MAX_HLS_OBJECTS_PER_ATTEMPT ||
     files.some(
       (file) =>
         !safeRelative.test(file.relativePath) ||

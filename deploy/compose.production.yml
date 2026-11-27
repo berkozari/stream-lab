@@ -1,0 +1,90 @@
+# Application-only production template. Requires externally managed PostgreSQL, Redis and S3.
+# The provided local compose.yaml is for development and is NOT extended here.
+name: streamlab-production
+
+x-production-env: &production-env
+  env_file:
+    - ../.env.production
+  environment:
+    NODE_ENV: production
+    RATE_LIMIT_STORE: redis
+
+x-security: &security
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  init: true
+  restart: unless-stopped
+
+services:
+  api:
+    <<: [*production-env, *security]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: api
+    image: streamlab-api:${STREAMLAB_IMAGE_TAG:-local}
+    ports:
+      - '127.0.0.1:${STREAMLAB_API_BIND_PORT:-4000}:4000'
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+    mem_limit: ${STREAMLAB_API_MEMORY_LIMIT:-1024m}
+    stop_grace_period: 45s
+    healthcheck:
+      test: ['CMD', 'node', 'scripts/production/healthcheck.mjs']
+      interval: 20s
+      timeout: 7s
+      retries: 3
+      start_period: 30s
+
+  worker:
+    <<: [*production-env, *security]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: worker
+    image: streamlab-worker:${STREAMLAB_IMAGE_TAG:-local}
+    volumes:
+      - worker_scratch:/scratch
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+    mem_limit: ${STREAMLAB_WORKER_MEMORY_LIMIT:-6g}
+    cpus: ${STREAMLAB_WORKER_CPUS:-3.0}
+    stop_grace_period: 45s
+    # Deliberately no public port; check queue_metrics and job lifecycle in collected logs.
+
+  web:
+    <<: *security
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: web
+    image: streamlab-web:${STREAMLAB_IMAGE_TAG:-local}
+    ports:
+      - '127.0.0.1:${STREAMLAB_WEB_BIND_PORT:-8080}:8080'
+    # Nginx is static-only: configure TLS + same-origin /api/ routing at your edge.
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+      - /var/cache/nginx:rw,nosuid,nodev,size=64m
+    mem_limit: ${STREAMLAB_WEB_MEMORY_LIMIT:-256m}
+
+  migrate:
+    <<: *production-env
+    profiles: [migration]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: migrate
+    image: streamlab-migrate:${STREAMLAB_IMAGE_TAG:-local}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+    restart: 'no'
+    # This job is only invoked explicitly by the operator BEFORE starting API/worker.
+
+volumes:
+  worker_scratch:

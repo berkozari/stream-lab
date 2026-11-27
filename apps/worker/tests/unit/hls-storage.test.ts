@@ -113,3 +113,25 @@ test('upload failure cleans all attempt-scoped keys, including an uncertain PUT'
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('excessive segment manifests are refused before any object storage writes', async () => {
+  const files = Array.from({ length: 20_001 }, (_, index) => ({
+    relativePath: `240p/segment_${String(index).padStart(5, '0')}.ts`,
+    absolutePath: '/unused',
+    sizeBytes: 1n,
+    contentType: 'video/mp2t',
+  }));
+  files[0]!.relativePath = 'master.m3u8';
+  let calls = 0;
+  const client = {
+    send: async () => {
+      calls++;
+      return {};
+    },
+  } as unknown as S3Client;
+  await assert.rejects(
+    uploadHlsOutput(job, token, files, new AbortController().signal, { client, config }),
+    /HLS_UPLOAD_MANIFEST_INVALID/u,
+  );
+  assert.equal(calls, 0);
+});

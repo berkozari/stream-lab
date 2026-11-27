@@ -1,0 +1,104 @@
+name: StreamLab CI — Security and Quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: streamlab-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint, TypeScript, format and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://streamlab_ci:ci_ephemeral_only@127.0.0.1:5432/streamlab_ci
+      NODE_ENV: test
+      RATE_LIMIT_STORE: memory
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.9
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm format:check
+      - run: pnpm build
+      - run: node --test scripts/tests/production-preflight.test.mjs scripts/tests/verify-stream-009-7.test.mjs
+      - run: node scripts/verify-stream-009-7.mjs
+
+  security-regression:
+    name: Security and worker regressions (offline fixtures)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://streamlab_ci:ci_ephemeral_only@127.0.0.1:5432/streamlab_ci
+      NODE_ENV: test
+      RATE_LIMIT_STORE: memory
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.9
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node --test scripts/tests/verify-stream-009-6.test.mjs scripts/tests/stream-009-6-perf.test.mjs
+      - run: node scripts/verify-stream-009-6.mjs
+      - run: node scripts/run-stream-009-6.mjs --offline
+
+  analytics-postgres:
+    name: Isolated PostgreSQL migration and rollback check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://streamlab_ci:ci_ephemeral_only@127.0.0.1:5432/streamlab_ci
+      NODE_ENV: test
+      ANALYTICS_INTEGRATION_ACK: disposable-database
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: streamlab_ci
+          POSTGRES_PASSWORD: ci_ephemeral_only
+          POSTGRES_DB: streamlab_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U streamlab_ci -d streamlab_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.9
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @streamlab/api db:migrate:deploy
+      - run: pnpm db:generate
+      - run: pnpm --filter @streamlab/api smoke:analytics:retention

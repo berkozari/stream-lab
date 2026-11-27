@@ -1,5 +1,6 @@
 /** STREAM-008.6: Aggregates at the database; never reads or exposes raw viewer sessions. */
 import { prisma } from '../config/database.js';
+import { safeAnalyticsNumber } from '../lib/analytics-retention.js';
 import type {
   VideoAnalyticsDailyRow,
   VideoAnalyticsTotals,
@@ -23,7 +24,7 @@ export async function readCreatorVideoAnalyticsTotals(
     qualifiedAt: { not: null },
     ...(since ? { startedAt: { gte: since } } : {}),
   };
-  const [aggregate, completedViews] = await Promise.all([
+  const [aggregate, completedViews, archived] = await Promise.all([
     prisma.playbackAnalyticsSession.aggregate({
       where,
       _count: { _all: true },
@@ -32,11 +33,20 @@ export async function readCreatorVideoAnalyticsTotals(
     prisma.playbackAnalyticsSession.count({
       where: { ...where, completedAt: { not: null } },
     }),
+    since
+      ? Promise.resolve(null)
+      : prisma.videoAnalyticsArchive.findFirst({
+          where: { videoId, video: { is: { ownerId, deletedAt: null } } },
+          select: { qualifiedViews: true, watchSeconds: true, completedViews: true },
+        }),
   ]);
   return {
-    qualifiedViews: aggregate._count._all,
-    watchSeconds: aggregate._sum.watchedSeconds ?? 0,
-    completedViews,
+    qualifiedViews:
+      aggregate._count._all + (archived ? safeAnalyticsNumber(archived.qualifiedViews) : 0),
+    watchSeconds:
+      (aggregate._sum.watchedSeconds ?? 0) +
+      (archived ? safeAnalyticsNumber(archived.watchSeconds) : 0),
+    completedViews: completedViews + (archived ? safeAnalyticsNumber(archived.completedViews) : 0),
   };
 }
 

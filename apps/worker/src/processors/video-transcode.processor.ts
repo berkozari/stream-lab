@@ -1,4 +1,5 @@
 import { DelayedError, UnrecoverableError, type Job } from 'bullmq';
+import { workerLogger } from '../lib/logger.js';
 import {
   VIDEO_TRANSCODE_JOB_NAME,
   VideoTranscodeJobDataSchema,
@@ -138,7 +139,10 @@ export function createVideoTranscodeProcessor(
         } catch {
           // The job is already delayed in Redis; DB lease expiry and the
           // recovery scanner handle a transient PostgreSQL failure.
-          console.warn('[worker] shutdown lease release failed; recovery will reconcile');
+          workerLogger.warn(
+            { event: 'transcoding_lease_release_failed' },
+            'shutdown lease release failed; recovery will reconcile',
+          );
         }
         throw new DelayedError();
       }

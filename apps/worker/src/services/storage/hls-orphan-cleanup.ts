@@ -1,5 +1,6 @@
 import { DeleteObjectsCommand, ListObjectsV2Command, type S3Client } from '@aws-sdk/client-s3';
 import type { workerPrisma } from '../../config/database.js';
+import { MAX_HLS_OBJECTS_PER_ATTEMPT } from '../transcoding/resource-budget.js';
 import {
   createWorkerStorageClient,
   readWorkerStorageConfig,
@@ -11,7 +12,6 @@ const ATTEMPT_KEY = new RegExp(`^hls/(${UUID})/v([1-9][0-9]*)/(${UUID})/(.+)$`, 
 const EXPECTED_FILE = /^(?:master\.m3u8|[a-z0-9]+\/(?:index\.m3u8|segment_[0-9]{5,8}\.ts))$/u;
 const MIN_AGE_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_AGE_MS = 48 * 60 * 60 * 1000;
-const MAX_OBJECTS_PER_ATTEMPT = 20_000;
 
 export type HlsAttempt = {
   videoId: string;
@@ -204,7 +204,7 @@ export async function cleanupOrphanedHlsObjects(
             if (object.LastModified.getTime() > now.getTime() - minAgeMs) fresh = true;
             keys.push(key);
           }
-          if (malformed || fresh || keys.length > MAX_OBJECTS_PER_ATTEMPT) break;
+          if (malformed || fresh || keys.length > MAX_HLS_OBJECTS_PER_ATTEMPT) break;
           if (batch.IsTruncated && !batch.NextContinuationToken)
             throw new Error('HLS_ORPHAN_PREFIX_CURSOR_MISSING');
           next = batch.IsTruncated ? batch.NextContinuationToken : undefined;
@@ -214,7 +214,7 @@ export async function cleanupOrphanedHlsObjects(
           malformed ||
           fresh ||
           !keys.length ||
-          keys.length > MAX_OBJECTS_PER_ATTEMPT ||
+          keys.length > MAX_HLS_OBJECTS_PER_ATTEMPT ||
           !(await check(attempt))
         ) {
           report.skipped++;
